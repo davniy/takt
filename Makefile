@@ -83,12 +83,12 @@ eval-compare:
 eval-review:
 	@test -f examples/flow-evaluation/mini-du/config.yaml || { echo 'missing examples/flow-evaluation/mini-du/config.yaml'; exit 1; }
 	@echo 'Starting live review evaluation: workflow=code:comprehensive-pr-review case=review-hardlink-bug preset=$(EVAL_PRESET) model_flags=$(EVAL_MODEL_FLAGS) assistant_idle_timeout=$(EVAL_IDLE_TIMEOUT)'
-	go run ./cmd/takt eval flow examples/flow-evaluation/mini-du/workflows/evaluate.yaml --target code:comprehensive-pr-review --config examples/flow-evaluation/mini-du/config.yaml --cases examples/flow-evaluation/mini-du/review/cases --case review-hardlink-bug --gate validation_error_rate.max=0 $(if $(EVAL_PRESET),--model-preset $(EVAL_PRESET)) $(EVAL_MODEL_FLAGS) --assistant-idle-timeout $(EVAL_IDLE_TIMEOUT) --trace --json >/dev/null
+	go run ./cmd/takt eval flow examples/flow-evaluation/mini-du/workflows/evaluate.yaml --target code:comprehensive-pr-review --config examples/flow-evaluation/mini-du/config.yaml --cases examples/flow-evaluation/mini-du/review/cases --case review-hardlink-bug --gate validation_error_rate.max=0 --gate valid_rate.min=1 --gate false_accept_rate.max=0 --gate flow_completion_rate.min=1 $(if $(EVAL_PRESET),--model-preset $(EVAL_PRESET)) $(EVAL_MODEL_FLAGS) --assistant-idle-timeout $(EVAL_IDLE_TIMEOUT) --trace --json >/dev/null
 
 eval-architect:
 	@test -f examples/flow-evaluation/mini-du/config.yaml || { echo 'missing examples/flow-evaluation/mini-du/config.yaml'; exit 1; }
 	@echo 'Starting live architect evaluation: workflow=code:architect case=collapse-redundant-layers preset=$(EVAL_PRESET) model_flags=$(EVAL_MODEL_FLAGS) assistant_idle_timeout=$(EVAL_IDLE_TIMEOUT)'
-	go run ./cmd/takt eval flow examples/flow-evaluation/mini-du/workflows/evaluate.yaml --target code:architect --config examples/flow-evaluation/mini-du/config.yaml --cases examples/flow-evaluation/mini-du/architect/cases --case collapse-redundant-layers --answer approved --gate validation_error_rate.max=0 $(if $(EVAL_PRESET),--model-preset $(EVAL_PRESET)) $(EVAL_MODEL_FLAGS) --assistant-idle-timeout $(EVAL_IDLE_TIMEOUT) --trace --json >/dev/null
+	go run ./cmd/takt eval flow examples/flow-evaluation/mini-du/workflows/evaluate.yaml --target code:architect --config examples/flow-evaluation/mini-du/config.yaml --cases examples/flow-evaluation/mini-du/architect/cases --case collapse-redundant-layers --answer approved --gate validation_error_rate.max=0 --gate valid_rate.min=1 --gate false_accept_rate.max=0 --gate flow_completion_rate.min=1 $(if $(EVAL_PRESET),--model-preset $(EVAL_PRESET)) $(EVAL_MODEL_FLAGS) --assistant-idle-timeout $(EVAL_IDLE_TIMEOUT) --trace --json >/dev/null
 
 eval-analyze:
 	@test -n "$(RUN)" || { echo 'usage: make eval-analyze RUN=.takt/evals/... [CASE=case-id] [REPEAT=1] [EVAL_CONFIG=path] [EVAL_PRESET=name] [EVAL_ANALYSIS_LANGUAGE=en|ru]'; exit 1; }

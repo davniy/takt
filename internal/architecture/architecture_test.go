@@ -522,6 +522,30 @@ func TestMakefileExposesLiveFlowEvaluationTargets(t *testing.T) {
 	}
 }
 
+func TestLiveReviewAndArchitectEvaluationsAreQualityGated(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(repoRoot(t), "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	for _, target := range []string{"eval-review:", "eval-architect:"} {
+		start := strings.Index(source, target)
+		if start < 0 {
+			t.Fatalf("Makefile missing %s", target)
+		}
+		end := strings.Index(source[start:], "\n\n")
+		if end < 0 {
+			end = len(source) - start
+		}
+		block := source[start : start+end]
+		for _, gate := range []string{"--gate valid_rate.min=1", "--gate false_accept_rate.max=0", "--gate flow_completion_rate.min=1"} {
+			if !strings.Contains(block, gate) {
+				t.Fatalf("%s missing quality gate %q", target, gate)
+			}
+		}
+	}
+}
+
 func TestMakefileFastCheckExcludesProcessHeavySuites(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(repoRoot(t), "Makefile"))
 	if err != nil {

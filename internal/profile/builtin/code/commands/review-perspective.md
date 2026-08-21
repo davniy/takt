@@ -4,7 +4,6 @@ model: review
 ---
 
 TAKT_PHASE: review-perspective
-ARTIFACT_PATH: $ARTIFACTS_DIR/review-perspective.json
 
 Run exactly the review perspective named in the workflow input.
 
@@ -20,8 +19,8 @@ Required procedure:
 2. Inspect surrounding code and tests before accepting a finding.
 3. Keep only findings caused by the reviewed change. Respect explicit scope exclusions.
 4. For every finding record severity, file, line or symbol, root cause, consequence, proof, and a concrete fix.
-5. Do not edit files. Write `$ARTIFACTS_DIR/review-perspective.json`.
+5. Do not edit files or write artifacts; return the review record as JSON on stdout.
 
 Return JSON only:
-`{"status":"ready|blocked|failed","code":"PERSPECTIVE_REVIEW_COMPLETE|PERSPECTIVE_SCOPE_INVALID|PERSPECTIVE_EVIDENCE_INCOMPLETE","summary":"...","evidence":["file:line"],"artifact_path":"$ARTIFACTS_DIR/review-perspective.json","findings":["stable finding summary"]}`.
+`{"status":"ready|blocked|failed","code":"PERSPECTIVE_REVIEW_COMPLETE|PERSPECTIVE_SCOPE_INVALID|PERSPECTIVE_EVIDENCE_INCOMPLETE","summary":"...","evidence":["file:line"],"findings":["stable finding summary"]}`.
 Use an empty `findings` array when no actionable issue exists; keep `evidence` non-empty with the inspected scope.

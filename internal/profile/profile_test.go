@@ -3,8 +3,11 @@ package profile
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"takt/internal/workflow"
 )
 
 func TestInitResolveAndPrepareMarkdownInput(t *testing.T) {
@@ -172,5 +175,53 @@ func TestCodeValidationCommandRequiresExactReferenceParity(t *testing.T) {
 		if !strings.Contains(string(command), contract) {
 			t.Fatalf("validation command omits %q", contract)
 		}
+	}
+}
+
+func TestReviewPerspectivePublishesTypedArtifactFromAssistantOutput(t *testing.T) {
+	root := t.TempDir()
+	if _, err := Init("code", root, false); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := Resolve("code:architect", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewPath := filepath.Join(filepath.Dir(resolved.WorkflowPath), "review-perspective.yaml")
+	wf, err := workflow.Load(reviewPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wf.Nodes) != 1 || wf.Nodes[0].ID != "review" {
+		t.Fatalf("unexpected review workflow nodes: %+v", wf.Nodes)
+	}
+	review := wf.Nodes[0]
+	if review.OutputPath != "" {
+		t.Fatalf("review artifact must be captured from structured assistant output, got output_path=%q", review.OutputPath)
+	}
+	if _, ok := review.OutputFormat.Properties["artifact_path"]; ok || slices.Contains(review.OutputFormat.Required, "artifact_path") {
+		t.Fatal("runtime-owned review artifact path must not be declared by the assistant")
+	}
+	deniedTools := map[string]bool{}
+	for _, tool := range review.DeniedTools {
+		deniedTools[tool] = true
+	}
+	if !deniedTools["write"] || !deniedTools["edit"] {
+		t.Fatalf("review must keep write/edit denied: %v", review.DeniedTools)
+	}
+	command, err := os.ReadFile(filepath.Join(root, ".takt", "profiles", "code", "commands", "review-perspective.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	commandText := string(command)
+	if !strings.Contains(commandText, "Return JSON only:") || strings.Contains(commandText, "artifact_path") {
+		t.Fatalf("review command must return the typed artifact through stdout: %s", commandText)
+	}
+	synthesis, err := os.ReadFile(filepath.Join(root, ".takt", "profiles", "code", "commands", "review-synthesis.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(synthesis), "$reviews.output") {
+		t.Fatal("review synthesis must receive fan-out results through the workflow contract")
 	}
 }

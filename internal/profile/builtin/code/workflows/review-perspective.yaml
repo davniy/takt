@@ -29,8 +29,6 @@ nodes:
         uniqueItems: true
         items:
           type: string
-      artifact_path:
-        type: string
       findings:
         type: array
         uniqueItems: true
@@ -41,11 +39,9 @@ nodes:
     - code
     - summary
     - evidence
-    - artifact_path
     - findings
   output_type: review-perspective
   output_mime: application/json
-  output_path: "$ARTIFACTS_DIR/review-perspective.json"
 name: review-perspective
 description: Run one isolated, evidence-scoped review perspective and publish a typed
   finding artifact.

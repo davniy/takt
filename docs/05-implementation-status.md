@@ -1,6 +1,6 @@
 # Текущее состояние реализации
 
-Статус после `v0.1.64-alpha`. Документ описывает фактическое состояние, а не исторический backlog.
+Статус к `v0.1.65-alpha`. Документ описывает фактическое состояние, а не исторический backlog.
 
 ## Unified Run evaluation — реализовано в v0.1.63
 
@@ -34,6 +34,8 @@
   `takt-flow-evaluation/v1alpha1` suites и directory readers сохранены как
   deprecated read/run compatibility; `eval flow init` по умолчанию создаёт
   authored scaffold, а legacy scaffold доступен только с явным `--legacy`.
+- live `eval-review`/`eval-architect` применяют quality gates к valid rate,
+  false accepts и flow completion, а не только к доступности validator.
 
 ## Assistant configuration fail-fast — реализовано в v0.1.62
 
@@ -67,7 +69,7 @@
   инфраструктурной ошибкой;
 - binary secret и ошибки persistence по-прежнему fail-closed;
 - relative Pi session evidence безопасно разрешается внутри execution workspace;
-- профиль `code` 0.19.5 ограничивает validation/revalidation probes, требует
+- профиль `code` 0.19.6 ограничивает validation/revalidation probes, требует
   прямого сравнения с заявленным внешним эталоном, выносит scratch data из
   execution workspace и принимает единственный case-insensitive verdict как
   обычную строку или Markdown-заголовок;
@@ -79,6 +81,9 @@
   OpenCode native `tool.execute.before` guard и `external_directory` permission;
 - mini-du validator 4 проверяет продукт до отсутствующих delivery artifacts,
   не понижая fail-closed приоритет ошибок artifact inspection.
+- review-perspective fan-out получает typed JSON artifact из assistant output;
+  read-only review policy больше не требует записи в `$ARTIFACTS_DIR` или
+  assistant-declared artifact path, а synthesis явно получает `$reviews.output`.
 
 ## Feature-flow gate matrix tiering — реализовано в v0.1.61
 
@@ -153,7 +158,7 @@
 
 ## Outcome-gated Development Flow Acceptance — реализовано в v0.1.59
 
-- профиль `code` 0.19.5 требует user-owned `allowed_paths` для `plan-to-pr`;
+- профиль `code` 0.19.6 требует user-owned `allowed_paths` для `plan-to-pr`;
 - native Git pathspec scope gate проверяет actual tracked/untracked state до draft PR и после review fixes;
 - PR, review и summary domain results закрыты workflow-level gates без новой runtime-абстракции;
 - `code:feature-development` принимает единственный нормализуемый `validation.md` verdict: keyword/value case-insensitive, необязательный ATX Markdown heading; `PASS` продолжает flow, `REPAIR` разрешает ровно одну repair и независимую revalidation, `BLOCKED` делает safe stop;
@@ -443,7 +448,7 @@ zero denominators are shown as `n/a`.
 
 ## Предметные поставки
 
-- профиль `code` 0.19.5: 19 workflow, deterministic `plan-to-pr` acceptance, outcome-gated `feature-development` и trusted block catalog;
+- профиль `code` 0.19.6: 19 workflow, deterministic `plan-to-pr` acceptance, outcome-gated `feature-development` и trusted block catalog;
 - Route DSL examples/eval corpus;
 - authoring skill;
 - multi-repo/reference fake adapters.

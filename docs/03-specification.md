@@ -1,6 +1,6 @@
 # Спецификация `takt/v1alpha1`
 
-Статус: текущий реализованный внешний контракт `v0.1.64-alpha` с единым
+Статус: текущий реализованный внешний контракт `v0.1.65-alpha` с единым
 Archon-first языком Workflow A0, bounded repair/runtime semantics A1 и unified
 Run evaluation.
 Config, Profile, Run и assistant protocol сохраняют собственные versioned
@@ -148,7 +148,7 @@ adapters:
 
 Workflow может объявить `input.format: json` и строгую JSON Schema в `input.schema`. До создания Run Takt декодирует вход, отклоняет неизвестные поля и применяет проверяемый subset (`type`, `properties`, `required`, `additionalProperties`, `enum`, `items`, `minItems`/`maxItems`, `uniqueItems`, `minLength`/`maxLength`, `pattern`, `minimum`/`maximum`, `minProperties`/`maxProperties`, integer semantics), общий со structured output. Профиль может задать JSON input отдельно для каждого workflow.
 
-Это используется шестью основными процессами профиля `code` 0.19.5: issue/idea/plan/review/PIV/Ralph входы проверяются до вызова assistant и изменения Git workspace.
+Это используется шестью основными процессами профиля `code` 0.19.6: issue/idea/plan/review/PIV/Ralph входы проверяются до вызова assistant и изменения Git workspace.
 
 ### Детерминированный контракт `code:plan-to-pr`
 

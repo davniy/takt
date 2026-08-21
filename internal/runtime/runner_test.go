@@ -2199,6 +2199,46 @@ func TestNodePolicyIsResolvedPassedAndPersisted(t *testing.T) {
 	}
 }
 
+func TestReviewPerspectiveCapturesTypedArtifactWithoutWriteAccess(t *testing.T) {
+	dir := t.TempDir()
+	additionalProperties := false
+	wf := &spec.Workflow{Name: "review-perspective", Nodes: []spec.Node{{
+		ID: "review", Prompt: "review", Provider: "demo", Model: "model", DeniedTools: []string{"write", "edit"},
+		OutputFormat: &spec.OutputFormat{Type: "object", AdditionalProperties: &additionalProperties, Properties: map[string]spec.OutputFormat{
+			"status": {Type: "string"}, "code": {Type: "string"}, "summary": {Type: "string"},
+		}, Required: []string{"status", "code", "summary"}},
+		OutputType: "review-perspective", OutputMIME: "application/json",
+	}}}
+	cfg := &spec.Config{Models: map[string]spec.ModelSpec{"model": {Provider: "test", ID: "model"}}}
+	r := New(wf, cfg, filepath.Join(dir, "workflow.yaml"), filepath.Join(dir, "config.yaml"), dir)
+	r.assistants = resolverFunc(func(string) (assistant.Adapter, error) {
+		return adapterFunc(func(_ context.Context, _ assistant.Request) (assistant.Result, error) {
+			return assistant.Result{Output: `{"status":"ready","code":"PERSPECTIVE_REVIEW_COMPLETE","summary":"clean"}`, ExitCode: 0}, nil
+		}), nil
+	})
+	state, err := r.Start(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Nodes["review"].Status != store.NodeCompleted || len(state.Nodes["review"].Artifacts) != 1 {
+		t.Fatalf("review did not complete with one typed artifact: %+v", state.Nodes["review"])
+	}
+	artifact := state.Nodes["review"].Artifacts[0]
+	if artifact.Type != "review-perspective" || artifact.MIME != "application/json" {
+		t.Fatalf("unexpected review artifact: %+v", artifact)
+	}
+	raw, err := os.ReadFile(artifact.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != `{"code":"PERSPECTIVE_REVIEW_COMPLETE","status":"ready","summary":"clean"}` {
+		t.Fatalf("unexpected typed artifact: %q", raw)
+	}
+	if got := state.Nodes["review"].Policy.DeniedTools; !reflect.DeepEqual(got, []string{"edit", "write"}) {
+		t.Fatalf("write/edit policy was not persisted: %v", got)
+	}
+}
+
 func TestGovernedChildPolicyRestrictsChildNode(t *testing.T) {
 	dir := t.TempDir()
 	childPath := filepath.Join(dir, "child.yaml")

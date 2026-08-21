@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Product version is reserved as `0.1.65-alpha` for the first behavior-bearing
+  slice after `v0.1.64-alpha`.
+- Review-perspective fan-out now captures its typed JSON artifact from the
+  assistant result while keeping `edit`/`write` denied; the command no longer
+  asks a read-only reviewer to write into the artifact directory or declare a
+  non-canonical artifact path. Review synthesis receives fan-out results
+  explicitly through `$reviews.output`.
+- The bundled `code` profile is now `0.19.6`.
+- Live review and architect evaluations now fail closed on invalid completed
+  candidates (`valid_rate`, `false_accept_rate`, and `flow_completion_rate`),
+  instead of checking validator infrastructure only.
 - Документация закрепляет Pi как основной assistant path со статусом beta для
   flow execution и session semantics. OpenCode, Qwen Code и прочие assistants
   явно обозначены alpha/reference и не подтверждены как production-пути; их

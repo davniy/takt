@@ -9,7 +9,7 @@ import (
 )
 
 func TestValueMatchesRootVersion(t *testing.T) {
-	const expected = "0.1.64-alpha"
+	const expected = "0.1.65-alpha"
 	if Value != expected {
 		t.Fatalf("runtime version = %q, want %q", Value, expected)
 	}
