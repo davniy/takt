@@ -13,7 +13,7 @@ The Go host-control API supports `advisory|guarded|strict`. `strict` is accepted
 
 The bundled Pi and OpenCode integrations declare **guarded**, not strict:
 
-- Pi `0.84.1` has verified command/input interception, durable recovery after daemon restart, native tool-call deny and completion suppression/replacement; the repeatable full conformance suite is still pending, so strict remains disabled;
+- Pi `0.84.1` has one full live conformance PASS (`command → input → tool → completion → recovery`) with fail-closed daemon loss and durable recovery; an independent repeat is still required, so strict remains disabled;
 - OpenCode `1.18.14` has verified command/input interception and recovery, but tool/completion remain incomplete live boundaries and package metadata keeps `verified: false`.
 
 Corporate rollout must pin the target host version and run a live contract suite before upgrading either adapter to strict.

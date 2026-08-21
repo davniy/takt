@@ -164,10 +164,36 @@ provider configuration, Session ID и временные workspace paths не с
   emitted JavaScript, final source SHA-256 —
   `7906aa07ddc82ffe445ca39b54bce4c8f78b90f5260b7068b8d760c6e3d77774`.
 
-Pi host-control остаётся `guarded`, `strict_allowed=false`; отдельные tool и
-completion boundaries подтверждены, но для strict всё ещё нужен один
-повторяемый полный command/input/tool/completion/recovery suite на финальном
-extension.
+На момент этого follow-up Pi host-control оставался `guarded`,
+`strict_allowed=false`: отдельные tool и completion boundaries были
+подтверждены, а полный suite ещё ожидал запуска. Результат первого полного
+suite зафиксирован ниже.
+
+### Pi 0.84.1 first repeatable full host conformance — 2026-08-22
+
+Один чистый disposable Git workspace и один Pi TUI session проверили полный
+контур `command → input → tool → completion → recovery` на
+`aihub/Qwen/Qwen3-Coder-Next`. Credentials, Session ID, raw transcript и
+temporary workspace paths в репозитории не сохранялись.
+
+| Boundary | Result | Observed evidence |
+|---|---|---|
+| command interception | PASS | `/takt` показал preview до вызова основной модели и создал durable managed plan |
+| input interception | PASS | обычный input был направлен в Takt; main model не вызывалась |
+| native tool blocking | PASS | mutating probe получил policy deny до execution; marker отсутствует |
+| completion blocking | PASS | streaming text скрыт, premature final заменён на `TAKT_COMPLETION_BLOCKED`, follow-up не запущен |
+| daemon recovery | PASS | после daemon stop input/tool остались fail-closed; restart восстановил тот же waiting plan через `host find` |
+
+Идентичность запуска: Pi `0.84.1`, final bundled extension SHA-256
+`7906aa07ddc82ffe445ca39b54bce4c8f78b90f5260b7068b8d760c6e3d77774`.
+Первый полный PASS переводит machine-readable host status в
+`live_verified=true`, но не в `strict`: независимый повтор остаётся
+`repeat_live_conformance` и является следующим обязательным шагом.
+
+Во время tool deny provider вернул отдельную ошибку для запроса с пустым
+набором tools; это не изменило наблюдаемый policy deny, отсутствие marker или
+completion/recovery decisions и зафиксировано как диагностическое ограничение
+текущего aihub endpoint, а не как успешное выполнение probe.
 
 ## Post-audit repair — 2026-08-10
 

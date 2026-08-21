@@ -22,11 +22,11 @@
   исторические smoke и fixtures не являются текущим release gate.
   Machine-readable `supported-alpha` для adapter protocol отделён от зрелости
   пользовательского Pi-пути.
-- Live evidence на Pi `0.84.1` подтверждает adapter fresh/exact resume,
-  extension load, command/input interception и durable recovery после restart
-  daemon, native tool-call deny и completion suppression/replacement. Полный
-  repeatable conformance suite ещё не выполнен, поэтому host-control сохраняет
-  `guarded` и `strict_allowed=false`.
+- Первый полный live conformance suite на Pi `0.84.1` (`command → input → tool →
+  completion → recovery`) прошёл на финальном extension: daemon loss остался
+  fail-closed, durable plan восстановился после restart, а mutating marker не
+  появился. Host-control сохраняет `guarded` и `strict_allowed=false` до
+  независимого `repeat_live_conformance`.
 - Pi host extension теперь типизирован против pinned `@earendil-works/pi-coding-agent`
   `0.84.1` и имеет deterministic contract на native tool/completion boundaries;
   это не заменяет live conformance и не повышает enforcement до `strict`.

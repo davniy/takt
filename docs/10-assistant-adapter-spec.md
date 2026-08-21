@@ -534,9 +534,10 @@ pinned Pi host contract — `@earendil-works/pi-coding-agent` `0.84.1`;
 последний live smoke на evidence version `0.84.1` (`aihub/Qwen/Qwen3-Coder-Next`)
 подтвердил adapter fresh/exact resume, extension load, command/input
 interception, durable recovery после restart daemon, native tool-call deny,
-streaming suppression и final-completion replacement. Это evidence отдельных
-границ, а не повторяемого полного conformance suite: `strict_allowed` поэтому
-остаётся `false`, а `full_live_conformance` остаётся missing. Исторический
+streaming suppression и final-completion replacement. Первый полный
+повторяемый suite `command → input → tool → completion → recovery` также
+прошёл на финальном extension; `strict_allowed` всё ещё `false`, потому что
+нужен независимый `repeat_live_conformance`. Исторический
 OpenCode `1.18.14` smoke
 подтвердил fresh/exact resume и plugin load/command/input/recovery, но не
 tool/completion. Поэтому bundled integrations сохраняют `guarded`, а

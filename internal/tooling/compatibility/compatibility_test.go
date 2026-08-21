@@ -29,10 +29,10 @@ func TestCurrentMatrixSeparatesSessionAndHostContracts(t *testing.T) {
 	for _, item := range matrix.Hosts {
 		if item.Host == "pi" {
 			piHost = true
-			if item.TargetContract != "0.84.1" || item.Enforcement != "guarded" || item.StrictAllowed || item.LiveVerified {
+			if item.TargetContract != "0.84.1" || item.Enforcement != "guarded" || item.StrictAllowed || !item.LiveVerified {
 				t.Fatalf("bad pi host policy: %+v", item)
 			}
-			if len(item.Capabilities) != 5 || len(item.MissingForStrict) != 1 || item.MissingForStrict[0] != "full_live_conformance" {
+			if len(item.Capabilities) != 5 || len(item.MissingForStrict) != 1 || item.MissingForStrict[0] != "repeat_live_conformance" {
 				t.Fatalf("bad pi host capability boundary: %+v", item)
 			}
 		}
@@ -83,7 +83,7 @@ func TestCheckLivePiProbeReportsVersionWithoutClaimingStrictHost(t *testing.T) {
 	if len(report.Assistants) != 1 || report.Assistants[0].Version != "9.8.7" {
 		t.Fatalf("assistants=%+v", report.Assistants)
 	}
-	if len(report.Hosts) == 0 || report.Hosts[0].StrictAllowed || report.Hosts[0].LiveVerified {
+	if len(report.Hosts) == 0 || report.Hosts[0].StrictAllowed {
 		t.Fatalf("version probe must not promote guarded host: %+v", report.Hosts)
 	}
 }
