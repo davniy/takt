@@ -68,7 +68,8 @@ nodes:
                 "baseline_workspace": "$MATRIX.item.baseline_path",
                 "expected_path": "$MATRIX.item.expected_path",
                 "run_id": "$candidate.child_run_id",
-                "run_status": "$candidate.status"
+                "run_status": "$candidate.status",
+                "artifacts": $candidate.artifacts
               }
           output_format:
             type: object

@@ -36,6 +36,10 @@
   authored scaffold, а legacy scaffold доступен только с явным `--legacy`.
 - live `eval-review`/`eval-architect` применяют quality gates к valid rate,
   false accepts и flow completion, а не только к доступности validator.
+- Authored validator получает полный минимальный candidate context, включая
+  `$candidate.artifacts`; локальные artifacts читаются из candidate Run, а
+  nested governed-child refs проверяются по переданному inventory с
+  checksum/size fail-closed. `$node.artifacts` разрешён как JSON inventory.
 
 ## Assistant configuration fail-fast — реализовано в v0.1.62
 

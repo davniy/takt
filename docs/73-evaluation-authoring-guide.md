@@ -350,7 +350,8 @@ nodes:
                 "baseline_workspace": "$MATRIX.item.baseline_path",
                 "expected_path": "$MATRIX.item.expected_path",
                 "run_id": "$candidate.child_run_id",
-                "run_status": "$candidate.status"
+                "run_status": "$candidate.status",
+                "artifacts": $candidate.artifacts
               }
           timeout: 2m
           allow_failure: true
@@ -392,6 +393,12 @@ nodes:
 равно должны получить возможность завершиться. `allow_failure` разрешает
 только обычный ненулевой exit code; timeout, cancellation, ошибка старта и
 protocol error не превращаются в success.
+
+Typed artifacts governed child Run физически остаются у producer Run.
+Передавайте `$candidate.artifacts` в validator как ограниченный inventory с
+путём, producer metadata, размером и checksum. Validator должен проверять
+только эти refs и candidate artifact directory, а не искать файлы по всему
+`.takt/runs`, где могут остаться артефакты других запусков.
 
 `matrix` выполняет branches последовательно и сохраняет completed branches для
 resume. Вложенные `matrix` и `loop_group` внутри него запрещены. Максимум —

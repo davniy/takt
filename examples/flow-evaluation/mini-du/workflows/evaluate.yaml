@@ -58,7 +58,8 @@ nodes:
                 "baseline_workspace": "$MATRIX.item.baseline_path",
                 "expected_path": "$MATRIX.item.expected_path",
                 "run_id": "$candidate.child_run_id",
-                "run_status": "$candidate.status"
+                "run_status": "$candidate.status",
+                "artifacts": $candidate.artifacts
               }
           timeout: 2m
           allow_failure: true
@@ -92,4 +93,3 @@ nodes:
               repeat: $MATRIX.item.repeat
             evidence: [$evidence.artifacts.evaluation-evidence]
       output_node: assess
-

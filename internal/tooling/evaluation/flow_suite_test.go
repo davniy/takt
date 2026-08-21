@@ -90,7 +90,7 @@ func TestFlowSchemasCompileOffline(t *testing.T) {
 		good, preflight, bad []byte
 	}{
 		{"flow-evaluation-suite.schema.json", []byte(`{"version":"takt-flow-evaluation/v1alpha1","workflow":"x","config":"c","cases":{"directory":"cases"},"validator":{"id":"v","version":"1","command":["go"],"path":"p","timeout":"1s","max_output_bytes":1}}`), nil, []byte(`{"version":"bad"}`)},
-		{"evaluation-validator-request.schema.json", []byte(`{"protocol_version":"takt-evaluation-validator/v1alpha1","type":"validation_request","case_id":"c","repeat":1,"workspace":"w","baseline_workspace":"b","expected_path":"e","run":{"id":"i","status":"completed","artifacts_dir":"a"}}`), []byte(`{"protocol_version":"takt-evaluation-validator/v1alpha1","type":"validation_request","case_id":"c","repeat":0,"workspace":"w","baseline_workspace":"b","expected_path":"e","run":{"id":"preflight","status":"not_started","artifacts_dir":""}}`), []byte(`{"type":"validation_request"}`)},
+		{"evaluation-validator-request.schema.json", []byte(`{"protocol_version":"takt-evaluation-validator/v1alpha1","type":"validation_request","case_id":"c","repeat":1,"workspace":"w","baseline_workspace":"b","expected_path":"e","run":{"id":"i","status":"completed","artifacts_dir":"a","artifacts":[]}}`), []byte(`{"protocol_version":"takt-evaluation-validator/v1alpha1","type":"validation_request","case_id":"c","repeat":0,"workspace":"w","baseline_workspace":"b","expected_path":"e","run":{"id":"preflight","status":"not_started","artifacts_dir":"","artifacts":[]}}`), []byte(`{"type":"validation_request"}`)},
 	} {
 		b, err := os.ReadFile(filepath.Join("..", "..", "..", "schemas", tc.name))
 		if err != nil {

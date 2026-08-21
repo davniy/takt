@@ -521,10 +521,11 @@ Retry родительского узла создаёт новую группу
 
 `node.completed` включает metadata артефактов. `RunState.Artifacts` агрегирует ссылки без потери hidden structural nodes. Governed child Run возвращает свои ссылки как часть execution result родительского узла, а fan-out сохраняет их в каждом item state. Сам файл остаётся в store фактического producer Run.
 
-Renderer разрешает `$<id>.artifacts.<type>.<field>` с именованным artifact type;
-числовой index и positional artifact forms запрещены. Resume использует
-сохранённый path/checksum, а изменение script source или dependency блокируется
-definition fingerprint до исполнения.
+Renderer разрешает `$<id>.artifacts.<type>.<field>` с именованным artifact type
+и `$<id>.artifacts` для полного JSON inventory. Числовой index и positional
+artifact forms запрещены. Resume использует сохранённый path/checksum, а
+изменение script source или dependency блокируется definition fingerprint до
+исполнения.
 
 ## Managed Git worktree
 

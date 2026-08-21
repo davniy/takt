@@ -21,6 +21,27 @@ func TestArchitectCorpusManifest(t *testing.T) {
 	assertCorpus(t, "architect", "code:architect", []string{"collapse-redundant-layers", "preserve-behavior-during-simplification", "remove-single-implementation-factories"}, []int{28, 29, 27})
 }
 
+func TestArchitectCorpusBasesPassDeclaredBehavior(t *testing.T) {
+	for _, id := range []string{"collapse-redundant-layers", "preserve-behavior-during-simplification", "remove-single-implementation-factories"} {
+		t.Run(id, func(t *testing.T) {
+			root := filepath.Join("..", "architect", "cases", id)
+			oracle, err := loadOracle(filepath.Join(root, "expected.yaml"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			bin, err := buildCandidate(filepath.Join(root, "workspace"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, scenario := range oracle.Scenarios {
+				if err := compareScenario(bin, scenario); err != nil {
+					t.Fatalf("patched architect base is not behaviorally valid: %v", err)
+				}
+			}
+		})
+	}
+}
+
 func TestReviewAndArchitectPreparationUsesPatchedHead(t *testing.T) {
 	copy := filepath.Join(t.TempDir(), "mini-du")
 	if err := evaluation.CopyFlowTree("..", copy); err != nil {

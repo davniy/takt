@@ -549,8 +549,10 @@ Stdout/stderr сохраняются раздельно. `output_format` нор�
 
 Доступны `$<id>.artifacts.<type>.path`, `.sha256`, `.mime`, `.size`, producer
 metadata и другие именованные поля. Числовой artifact type/index запрещён.
-Governed child Run и fan-out поднимают ссылки родителю, сохраняя producer
-provenance.
+Ссылка `$<id>.artifacts` без type возвращает JSON inventory всех typed
+artifacts узла; она предназначена для bounded validator/evidence boundary, а
+не для выбора одного файла. Governed child Run и fan-out поднимают ссылки
+родителю, сохраняя producer provenance.
 
 ### `assessment`
 

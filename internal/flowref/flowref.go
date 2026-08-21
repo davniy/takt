@@ -181,7 +181,7 @@ func Parse(source string, surface Surface) (Reference, error) {
 	}
 	if parts[1] == "artifacts" {
 		if len(parts) < 3 {
-			return Reference{}, fmt.Errorf("artifact reference requires type")
+			return Reference{Kind: KindNode, NodeID: node, Path: []string{"artifacts"}, Optional: optional, Default: def}, nil
 		}
 		typeParts := parts[2:]
 		meta := ""

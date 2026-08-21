@@ -13,6 +13,9 @@
 - Live review and architect evaluations now fail closed on invalid completed
   candidates (`valid_rate`, `false_accept_rate`, and `flow_completion_rate`),
   instead of checking validator infrastructure only.
+- Authored evaluation validators now receive candidate artifact inventory for
+  nested governed Runs; artifact refs are checked by path, size and SHA-256,
+  and `$node.artifacts` is a supported JSON inventory reference.
 - Документация закрепляет Pi как основной assistant path со статусом beta для
   flow execution и session semantics. OpenCode, Qwen Code и прочие assistants
   явно обозначены alpha/reference и не подтверждены как production-пути; их

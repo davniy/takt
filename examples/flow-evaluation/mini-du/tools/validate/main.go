@@ -10,16 +10,18 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 type request struct {
-	CaseID       string `json:"case_id"`
-	Repeat       int    `json:"repeat"`
-	Workspace    string `json:"workspace"`
-	Baseline     string `json:"baseline_workspace"`
-	ExpectedPath string `json:"expected_path"`
-	RunID        string `json:"run_id"`
-	RunStatus    string `json:"run_status"`
+	CaseID       string              `json:"case_id"`
+	Repeat       int                 `json:"repeat"`
+	Workspace    string              `json:"workspace"`
+	Baseline     string              `json:"baseline_workspace"`
+	ExpectedPath string              `json:"expected_path"`
+	RunID        string              `json:"run_id"`
+	RunStatus    string              `json:"run_status"`
+	Artifacts    []validatorArtifact `json:"artifacts"`
 }
 
 type validatorRequest struct {
@@ -35,9 +37,23 @@ type validatorRequest struct {
 }
 
 type validatorRun struct {
-	ID           string `json:"id"`
-	Status       string `json:"status"`
-	ArtifactsDir string `json:"artifacts_dir"`
+	ID           string              `json:"id"`
+	Status       string              `json:"status"`
+	ArtifactsDir string              `json:"artifacts_dir"`
+	Artifacts    []validatorArtifact `json:"artifacts"`
+}
+type validatorArtifact struct {
+	ID             string    `json:"id"`
+	Type           string    `json:"type"`
+	MIME           string    `json:"mime"`
+	Path           string    `json:"path"`
+	SHA256         string    `json:"sha256"`
+	Size           int64     `json:"size"`
+	ProducerRunID  string    `json:"producer_run_id"`
+	ProducerNodeID string    `json:"producer_node_id"`
+	Attempt        int       `json:"attempt"`
+	CreatedAt      time.Time `json:"created_at"`
+	CallID         string    `json:"call_id,omitempty"`
 }
 
 type validatorExternalState struct {
@@ -73,10 +89,13 @@ func run(input io.Reader, output, diagnostic io.Writer) error {
 	if control == "" {
 		return fmt.Errorf("TAKT_WORKSPACE is required")
 	}
+	if value.Artifacts == nil {
+		value.Artifacts = []validatorArtifact{}
+	}
 	request := validatorRequest{
 		ProtocolVersion: "takt-evaluation-validator/v1alpha1", Type: "validation_request",
 		CaseID: value.CaseID, Repeat: value.Repeat, Workspace: value.Workspace, Baseline: value.Baseline, ExpectedPath: value.ExpectedPath,
-		Run: validatorRun{ID: value.RunID, Status: value.RunStatus, ArtifactsDir: filepath.Join(control, ".takt", "runs", value.RunID, "artifacts")},
+		Run: validatorRun{ID: value.RunID, Status: value.RunStatus, ArtifactsDir: filepath.Join(control, ".takt", "runs", value.RunID, "artifacts"), Artifacts: value.Artifacts},
 	}
 	if scm := filepath.Join(value.Workspace, ".takt", "evals", "scm"); directory(scm) {
 		request.ExternalState = &validatorExternalState{SCMDir: scm}

@@ -37,6 +37,16 @@ func TestReferenceLexerAcceptsWholeTypedArtifact(t *testing.T) {
 	}
 }
 
+func TestReferenceLexerAcceptsArtifactInventory(t *testing.T) {
+	ref, err := flowref.Parse("$candidate.artifacts", flowref.NonShell)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ref.NodeID != "candidate" || !reflect.DeepEqual(ref.Path, []string{"artifacts"}) {
+		t.Fatalf("reference = %#v", ref)
+	}
+}
+
 func TestReferenceLexerKeepsDottedArtifactTypeCanonical(t *testing.T) {
 	metadata, err := flowref.Parse("$evidence.artifacts.report.json.path", flowref.NonShell)
 	if err != nil {

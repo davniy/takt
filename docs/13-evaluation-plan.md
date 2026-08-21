@@ -1,6 +1,6 @@
 # План оценки агентных стратегий
 
-Статус: в `v0.1.64-alpha` workflow-level контур поддерживает `takt eval run/report/benchmark/compare`, authored ordinary Run evaluation и task-level `takt eval task-benchmark`. Ближайший live evaluation policy — Pi-first: Route DSL/Go/Document evidence собирается на наиболее отлаженном Pi path; OpenCode/Qwen остаются alpha/reference и не входят в текущий release gate. Fake contract benchmarks отделены от live evidence со штатными validators и реальными моделями. Route/micro DSL и evaluation fixtures являются публичными OSS surfaces.
+Статус: в `v0.1.65-alpha` workflow-level контур поддерживает `takt eval run/report/benchmark/compare`, authored ordinary Run evaluation и task-level `takt eval task-benchmark`. Ближайший live evaluation policy — Pi-first: Route DSL/Go/Document evidence собирается на наиболее отлаженном Pi path; OpenCode/Qwen остаются alpha/reference и не входят в текущий release gate. Fake contract benchmarks отделены от live evidence со штатными validators и реальными моделями. Authored validators получают bounded `$candidate.artifacts` inventory для nested governed Runs; прямые candidate artifacts остаются ограничены `artifacts_dir`, а inventory refs проверяются по абсолютному пути, размеру и SHA-256. Route/micro DSL и evaluation fixtures являются публичными OSS surfaces.
 
 ## 1. Цель
 

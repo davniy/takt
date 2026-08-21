@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"takt/internal/yamlcodec"
 )
@@ -43,9 +44,23 @@ type validatorRequest struct {
 	ExternalState   *externalState `json:"external_state,omitempty"`
 }
 type validatorRun struct {
-	ID           string `json:"id"`
-	Status       string `json:"status"`
-	ArtifactsDir string `json:"artifacts_dir"`
+	ID           string              `json:"id"`
+	Status       string              `json:"status"`
+	ArtifactsDir string              `json:"artifacts_dir"`
+	Artifacts    []validatorArtifact `json:"artifacts"`
+}
+type validatorArtifact struct {
+	ID             string    `json:"id"`
+	Type           string    `json:"type"`
+	MIME           string    `json:"mime"`
+	Path           string    `json:"path"`
+	SHA256         string    `json:"sha256"`
+	Size           int64     `json:"size"`
+	ProducerRunID  string    `json:"producer_run_id"`
+	ProducerNodeID string    `json:"producer_node_id"`
+	Attempt        int       `json:"attempt"`
+	CreatedAt      time.Time `json:"created_at"`
+	CallID         string    `json:"call_id,omitempty"`
 }
 type externalState struct {
 	SCMDir string `json:"scm_dir"`
@@ -230,7 +245,7 @@ func productCheck(req validatorRequest, oracle miniDUOracle) error {
 	if err := compareTrees(req.Baseline, req.Workspace, oracle.AllowedPaths); err != nil {
 		return err
 	}
-	artifactErr := requireArtifacts(req.Run.ArtifactsDir, oracle.RequiredArtifacts)
+	artifactErr := requireArtifacts(req.Run.ArtifactsDir, oracle.RequiredArtifacts, req.Run.Artifacts)
 	if errors.Is(artifactErr, errArtifactInspection) {
 		return artifactErr
 	}
@@ -317,7 +332,7 @@ func allowedPath(name string, patterns []string) bool {
 	}
 	return false
 }
-func requireArtifacts(dir string, names []string) error {
+func requireArtifacts(dir string, names []string, inventory []validatorArtifact) error {
 	for _, name := range names {
 		found := false
 		err := filepath.WalkDir(dir, func(p string, d os.DirEntry, e error) error {
@@ -329,11 +344,35 @@ func requireArtifacts(dir string, names []string) error {
 			}
 			return nil
 		})
-		if err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf("%w %s", errMissingArtifact, name)
-			}
+		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("%w: %v", errArtifactInspection, err)
+		}
+		if !found {
+			for _, artifact := range inventory {
+				if filepath.Base(artifact.Path) != name {
+					continue
+				}
+				if !filepath.IsAbs(artifact.Path) {
+					return fmt.Errorf("%w: artifact %s has invalid path", errArtifactInspection, name)
+				}
+				info, err := os.Lstat(artifact.Path)
+				if err != nil {
+					return fmt.Errorf("%w: artifact %s: %v", errArtifactInspection, name, err)
+				}
+				if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+					return fmt.Errorf("%w: artifact %s is not a regular file", errArtifactInspection, name)
+				}
+				data, err := os.ReadFile(artifact.Path)
+				if err != nil {
+					return fmt.Errorf("%w: artifact %s: %v", errArtifactInspection, name, err)
+				}
+				sum := sha256.Sum256(data)
+				if int64(len(data)) != artifact.Size || hex.EncodeToString(sum[:]) != artifact.SHA256 {
+					return fmt.Errorf("%w: artifact %s metadata mismatch", errArtifactInspection, name)
+				}
+				found = true
+				break
+			}
 		}
 		if !found {
 			return fmt.Errorf("%w %s", errMissingArtifact, name)

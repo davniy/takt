@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -9,6 +11,45 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestValidatorAcceptsRequiredArtifactFromNestedChildInventory(t *testing.T) {
+	root := t.TempDir()
+	req := testRequest(root)
+	req.Run.Status = "completed"
+	if err := os.WriteFile(req.ExpectedPath, []byte("oracle:\n  allowed_paths: [cmd/mini-du/**]\n  required_artifacts: [review-report.md]\n  scenarios: [empty]\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, workspace := range []string{req.Baseline, req.Workspace} {
+		if err := os.WriteFile(filepath.Join(workspace, "go.mod"), []byte("module example.test/candidate\ngo 1.23\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	product := filepath.Join(req.Workspace, "cmd", "mini-du")
+	if err := os.MkdirAll(product, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(product, "main.go"), []byte("package main\nimport (\"fmt\"; \"os\")\nfunc main() { fmt.Printf(\"0\\t%s\\n\", os.Args[len(os.Args)-1]) }\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	childArtifacts := filepath.Join(root, "nested-child-run", "artifacts", "nodes", "synthesize", "1")
+	if err := os.MkdirAll(childArtifacts, 0755); err != nil {
+		t.Fatal(err)
+	}
+	artifactPath := filepath.Join(childArtifacts, "review-report.md")
+	data := []byte("# Review\napproved\n")
+	if err := os.WriteFile(artifactPath, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	req.Run.Artifacts = []validatorArtifact{{
+		ID: "synthesize:review-report:1", Type: "review-report", MIME: "text/markdown", Path: artifactPath,
+		SHA256: hex.EncodeToString(sum[:]), Size: int64(len(data)), ProducerRunID: "nested-child-run", ProducerNodeID: "synthesize", Attempt: 1,
+	}}
+	result, err := validate(req)
+	if err != nil || !result.Valid {
+		t.Fatalf("nested child artifact was not accepted: result=%+v err=%v", result, err)
+	}
+}
 
 func TestDecodeRequestStrict(t *testing.T) {
 	root := t.TempDir()

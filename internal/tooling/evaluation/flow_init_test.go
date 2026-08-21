@@ -36,6 +36,7 @@ func TestFlowInitCreatesAuthoredEvaluationScaffold(t *testing.T) {
 		`"expected_path": "$MATRIX.item.expected_path"`,
 		`"run_id": "$candidate.child_run_id"`,
 		`"run_status": "$candidate.status"`,
+		`"artifacts": $candidate.artifacts`,
 		"- --workspace\n              - $candidate.child_execution_workspace",
 		"- --base\n              - $candidate.child_base_commit",
 	} {
