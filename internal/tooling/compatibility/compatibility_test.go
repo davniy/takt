@@ -32,7 +32,7 @@ func TestCurrentMatrixSeparatesSessionAndHostContracts(t *testing.T) {
 			if item.TargetContract != "0.84.1" || item.Enforcement != "guarded" || item.StrictAllowed || !item.LiveVerified {
 				t.Fatalf("bad pi host policy: %+v", item)
 			}
-			if len(item.Capabilities) != 5 || len(item.MissingForStrict) != 1 || item.MissingForStrict[0] != "repeat_live_conformance" {
+			if len(item.Capabilities) != 5 || len(item.MissingForStrict) != 1 || item.MissingForStrict[0] != "explicit_strict_promotion" {
 				t.Fatalf("bad pi host capability boundary: %+v", item)
 			}
 		}

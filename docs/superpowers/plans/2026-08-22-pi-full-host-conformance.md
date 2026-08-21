@@ -4,7 +4,7 @@
 
 **Goal:** Выполнить первый повторяемый full live conformance run для Pi `0.84.1` на финальном bundled extension и сохранить redacted evidence, не включая `strict`.
 
-**Architecture:** Production runtime и extension не меняются до наблюдаемого дефекта. Disposable driver загружает только mutating probe tool и commands, а guards остаются в production `pi/index.ts`; решения идут через существующий daemon API. После первого полного PASS меняется только evidence/compatibility status: `live_verified=true`, `guarded`, `strict_allowed=false`, missing `repeat_live_conformance`.
+**Architecture:** Production runtime и extension не меняются до наблюдаемого дефекта. Disposable driver загружает только mutating probe tool и commands, а guards остаются в production `pi/index.ts`; решения идут через существующий daemon API. После двух полных PASS меняются только evidence/compatibility status: `live_verified=true`, `guarded`, `strict_allowed=false`, missing `explicit_strict_promotion`.
 
 **Tech Stack:** Pi `0.84.1` TUI, `@earendil-works/pi-coding-agent`, локальный `takt daemon`, temporary TypeScript driver, Go compatibility/host contracts, Markdown evidence.
 
@@ -16,7 +16,7 @@
 
 - Modify: `docs/archive/verification/TEST_RESULTS-v0.1.57-2026-08-18.md` — sanitized live table, date, model/version/fingerprints, marker result and limitations.
 - Modify: `internal/tooling/compatibility/compatibility.go` — only Pi evidence status.
-- Modify: `internal/tooling/compatibility/compatibility_test.go` — exact first-PASS status contract.
+- Modify: `internal/tooling/compatibility/compatibility_test.go` — exact evidence status contract.
 - Modify: `docs/05-implementation-status.md`, `docs/10-assistant-adapter-spec.md`, `docs/14-backlog-v0.2.md`, `integrations/coding-agent-host-control/README.md`, `CHANGELOG.md` — keep first PASS distinct from strict promotion.
 - Do not commit temporary driver, sessions, credentials, daemon state, raw transcripts or absolute temporary paths.
 
@@ -197,7 +197,7 @@ mkdir -p "$cleanup_dir"
 mv "$live_root" /tmp/takt-pi-full-driver.ts /tmp/takt-pi-full-root.txt /tmp/takt-pi-full-marker.txt /tmp/takt-pi-matrix.json "$cleanup_dir"/
 ```
 
-## Task 4: Record first-PASS evidence and status
+## Task 4: Record conformance evidence and status
 
 **Files:**
 
@@ -206,28 +206,30 @@ mv "$live_root" /tmp/takt-pi-full-driver.ts /tmp/takt-pi-full-root.txt /tmp/takt
 - Test: `internal/tooling/compatibility/compatibility_test.go`
 - Modify: current Pi host status docs listed in the design spec.
 
-- [ ] **Step 1: Update compatibility only after all five PASS results.**
+- [x] **Step 1: Update compatibility only after all five PASS results.**
 
-Set the Pi row to `LiveVerified: true`, `StrictAllowed: false`,
+The Pi row is `LiveVerified: true`, `StrictAllowed: false`,
 `Enforcement: "guarded"`, five capabilities and
-`MissingForStrict: []string{"repeat_live_conformance"}`. The note must say
-that this is the first full suite and independent repeat is required.
+`MissingForStrict: []string{"explicit_strict_promotion"}` after two
+independent full suites. The note keeps strict promotion separate from live
+evidence.
 
-- [ ] **Step 2: Use TDD for the status change.**
+- [x] **Step 2: Use TDD for the status change.**
 
 First change `compatibility_test.go` to require the new exact status and run
 the focused test; it must fail against the old row. Then change
 `compatibility.go` minimally and rerun the focused test to GREEN.
 
-- [ ] **Step 3: Write sanitized evidence and backlog wording.**
+- [x] **Step 3: Write sanitized evidence and backlog wording.**
 
 Record date, Pi/model identity, CLI/extension hashes, the five-capability table,
-marker absence and deferred strict promotion. Keep `HOST-001`/`HOST-002` open
-with next action `repeat_live_conformance`; do not edit OpenCode/Qwen status.
+marker absence and deferred strict promotion. `HOST-002` is closed by the
+second repeat; `HOST-001` retains only the explicit promotion step. OpenCode/
+Qwen status is unchanged.
 
 ## Task 5: Verify, review and commit
 
-- [ ] **Step 1: Focused checks.**
+- [x] **Step 1: Focused checks.**
 
 ```bash
 go test ./internal/tooling/compatibility ./tests/e2e -run 'Compatibility|Host(ControlBoundary|IntegrationSourceContract)' -count=1
@@ -246,23 +248,21 @@ make check
 ./scripts/verify.sh
 ```
 
-- [ ] **Step 3: Review and commit only first-PASS evidence.**
+- [ ] **Step 3: Review and commit the independent-repeat evidence.**
 
 ```bash
 git diff --check
 git status --short
 git diff --stat
-git add CHANGELOG.md docs/05-implementation-status.md docs/10-assistant-adapter-spec.md docs/14-backlog-v0.2.md docs/archive/verification/TEST_RESULTS-v0.1.57-2026-08-18.md integrations/coding-agent-host-control/README.md internal/tooling/compatibility/compatibility.go internal/tooling/compatibility/compatibility_test.go
-git commit -m "docs: record first Pi full host conformance"
+git add CHANGELOG.md docs/05-implementation-status.md docs/10-assistant-adapter-spec.md docs/14-backlog-v0.2.md docs/archive/verification/TEST_RESULTS-v0.1.57-2026-08-18.md docs/superpowers/plans/2026-08-22-pi-full-host-conformance.md docs/superpowers/specs/2026-08-22-pi-full-host-conformance-design.md integrations/coding-agent-host-control/README.md internal/tooling/compatibility/compatibility.go internal/tooling/compatibility/compatibility_test.go
+git commit -m "docs: record repeat Pi host conformance"
 ```
 
-If any required boundary is `FAIL` or `NOT VERIFIED`, commit only sanitized
-evidence with compatibility still `live_verified:false` and
-`missing_for_strict:["full_live_conformance"]`; make no production or
-promotion change.
+If any required boundary is `FAIL` or `NOT VERIFIED`, compatibility remains
+guarded and no promotion change is made.
 
 ## Deferred follow-up
 
-Repeat the same scenario with the same pinned Pi contract. Only a second full
-PASS may start a separate strict-promotion plan; no live script may mutate
-enforcement or strict fields automatically.
+The independent repeat passed on the same pinned Pi contract. A separate
+strict-promotion plan is now eligible; no live script may mutate enforcement or
+strict fields automatically.

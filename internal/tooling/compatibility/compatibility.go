@@ -88,7 +88,7 @@ func CurrentMatrix() Matrix {
 			{Type: "mock", Support: "internal", Verification: "test-only", Notes: []string{"Not a production assistant contract."}},
 		},
 		Hosts: []HostPolicy{
-			{Host: "pi", Integration: "integrations/coding-agent-host-control/pi", TargetContract: "0.84.1", Enforcement: "guarded", LiveVerified: true, StrictAllowed: false, Capabilities: []string{"command_interception", "input_interception", "tool_call_blocking", "completion_blocking", "session_recovery"}, MissingForStrict: []string{"repeat_live_conformance"}, Notes: []string{"The first full live suite passed on the pinned Pi contract; strict remains disabled until an independent repeat passes."}},
+			{Host: "pi", Integration: "integrations/coding-agent-host-control/pi", TargetContract: "0.84.1", Enforcement: "guarded", LiveVerified: true, StrictAllowed: false, Capabilities: []string{"command_interception", "input_interception", "tool_call_blocking", "completion_blocking", "session_recovery"}, MissingForStrict: []string{"explicit_strict_promotion"}, Notes: []string{"Two independent full live suites passed on the pinned Pi contract; strict remains disabled until an explicit promotion change."}},
 			{Host: "opencode", Integration: "integrations/coding-agent-host-control/opencode", TargetContract: "V2 beta", Enforcement: "guarded", LiveVerified: false, StrictAllowed: false, Capabilities: []string{"command_interception", "input_interception", "tool_call_blocking", "session_recovery"}, MissingForStrict: []string{"verified_completion_blocking"}, Notes: []string{"Context-abort/model-dispatch behavior requires live verification on the pinned OpenCode build."}},
 		},
 		DomainAdapters: []DomainAdapterPolicy{

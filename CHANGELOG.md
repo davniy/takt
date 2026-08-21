@@ -25,8 +25,8 @@
 - Первый полный live conformance suite на Pi `0.84.1` (`command → input → tool →
   completion → recovery`) прошёл на финальном extension: daemon loss остался
   fail-closed, durable plan восстановился после restart, а mutating marker не
-  появился. Host-control сохраняет `guarded` и `strict_allowed=false` до
-  независимого `repeat_live_conformance`.
+  появился. Независимый repeat также прошёл; host-control сохраняет `guarded`
+  и `strict_allowed=false` до отдельного явного strict-promotion change.
 - Pi host extension теперь типизирован против pinned `@earendil-works/pi-coding-agent`
   `0.84.1` и имеет deterministic contract на native tool/completion boundaries;
   это не заменяет live conformance и не повышает enforcement до `strict`.

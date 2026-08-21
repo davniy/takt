@@ -33,7 +33,7 @@ strict host contract.
 | Pi extension | Pinned `@earendil-works/pi-coding-agent@0.84.1`; guarded; five host capabilities declared | `integrations/coding-agent-host-control/pi/`, `internal/tooling/compatibility/compatibility.go` |
 | Deterministic boundary | TypeScript smoke проверяет tool deny, streaming/final replacement и daemon fail-closed | `integrations/coding-agent-host-control/contracts/pi-blocking-contract.mts` |
 | Live evidence | Отдельные command/input/recovery и tool/completion probes PASS, но не одним финальным suite | `docs/archive/verification/TEST_RESULTS-v0.1.57-2026-08-18.md` |
-| Strict policy | Сейчас `enforcement=guarded`, `live_verified=false`, `strict_allowed=false`; missing `full_live_conformance` | `internal/tooling/compatibility/compatibility.go` |
+| Strict policy | После двух PASS: `enforcement=guarded`, `live_verified=true`, `strict_allowed=false`; missing `explicit_strict_promotion` | `internal/tooling/compatibility/compatibility.go` |
 
 Production extension уже использует native Pi hooks. Поэтому повторяемость
 достигается документированным opt-in live runbook поверх существующих entrypoint
@@ -74,9 +74,9 @@ extension или объявлять PASS по собственному пове�
 - `live_verified=true`;
 - `enforcement=guarded`;
 - `strict_allowed=false`;
-- `missing_for_strict=[repeat_live_conformance]`;
-- `HOST-001`/`HOST-002` остаются открытыми до независимого повторного полного
-  PASS на тех же version/fingerprints.
+- `missing_for_strict=[explicit_strict_promotion]`;
+- два независимых полных PASS закрывают conformance evidence; `HOST-002`
+  закрыт, а `HOST-001` ждёт отдельного strict-promotion change.
 
 После второго полного PASS отдельный минимальный change может включить bundled
 Pi `strict` и закрыть `HOST-001`/`HOST-002`. Сам live-прогон не меняет runtime

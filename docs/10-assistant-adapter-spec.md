@@ -536,8 +536,9 @@ pinned Pi host contract — `@earendil-works/pi-coding-agent` `0.84.1`;
 interception, durable recovery после restart daemon, native tool-call deny,
 streaming suppression и final-completion replacement. Первый полный
 повторяемый suite `command → input → tool → completion → recovery` также
-прошёл на финальном extension; `strict_allowed` всё ещё `false`, потому что
-нужен независимый `repeat_live_conformance`. Исторический
+прошёл на финальном extension; независимый repeat также прошёл на Pi `0.84.1`.
+`strict_allowed` всё ещё `false`, потому что promotion вынесен в отдельное
+явное изменение политики. Исторический
 OpenCode `1.18.14` smoke
 подтвердил fresh/exact resume и plugin load/command/input/recovery, но не
 tool/completion. Поэтому bundled integrations сохраняют `guarded`, а

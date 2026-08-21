@@ -25,13 +25,12 @@ Route DSL/micro DSL, их examples, validators, benchmarks и evaluation fixture
 |---|---|---|---|---|---|
 | `REL-001` | Синхронизировать versioned-срез после `v0.1.63-alpha` | maintainer | `VERSION`, `internal/version`, README, specification/status и changelog согласованы на `0.1.64-alpha`; contract test проходит | — | **закрыто в `v0.1.64-alpha`** |
 | `FLOW-001` | Pi-backed стабилизация основных flow-функций | runtime/flow owner | На pinned Pi пройдены representative journeys `validate → run → status/events/artifacts`, approval/answer, retry/recovery, governed child/matrix и deterministic evaluation; каждый найденный дефект получает regression contract | `HOST-002` для стабильного assistant path | **закрыто: authored Pi architect gate `run-83d32c95f6485ecc24b86fe4` дал `true_accept`, `valid:true`; добавлены inventory и parser regression contracts** |
-| `HOST-001` | Доказать strict host control для Pi | integration owner | На pinned Pi пройдены command/input interception, tool blocking, completion blocking и recovery; сохранены redacted logs/fingerprints; только тогда `strict_allowed=true` | `HOST-002` | **в работе, `guarded`**: первый полный suite PASS, нужен независимый repeat |
-| `HOST-002` | Зафиксировать и проверить реально поддерживаемую версию Pi | integration owner | Выбрана pinned версия Pi и повторён полный conformance; актуальная evidence version — Pi `0.84.1` | `repeat_live_conformance` | **первый полный conformance PASS** на `0.84.1`; следующий шаг — `repeat_live_conformance` |
+| `HOST-001` | Доказать strict host control для Pi | integration owner | На pinned Pi пройдены command/input interception, tool blocking, completion blocking и recovery; сохранены redacted logs/fingerprints; только тогда `strict_allowed=true` | — | **conformance закрыт, promotion отдельно**: два полных suite PASS; `guarded` сохраняется до явного strict-promotion change |
+| `HOST-002` | Зафиксировать и проверить реально поддерживаемую версию Pi | integration owner | Выбрана pinned версия Pi и повторён полный conformance; актуальная evidence version — Pi `0.84.1` | — | **закрыто по evidence**: два полных conformance PASS на `0.84.1` |
 
-Pi — beta-tested assistant path, но до закрытия `HOST-001` его host-control
-остаётся `guarded`. Первый полный live PASS не включает strict promotion:
-нужен независимый repeat, а version probe или fresh/resume smoke сами по себе
-не дают права объявить host `strict`.
+Pi — beta-tested assistant path. Два полных live PASS закрывают conformance,
+но не включают strict promotion: host-control остаётся `guarded` до отдельного
+явного изменения политики.
 
 ## P1 — production evidence и контрактная стабилизация
 
@@ -60,11 +59,10 @@ adapters, RBAC) не являются backlog ядра до появления �
 
 ## Порядок работы
 
-1. Повторить Pi `0.84.1` full-conformance независимо (`repeat_live_conformance`), сохраняя `guarded`.
-2. Только после второго PASS пересмотреть `HOST-001` и strict promotion.
-3. Собрать Pi-backed `EVAL-001`; не считать synthetic benchmark production evidence.
-4. На этой базе закрыть `EVAL-002` и `API-001`; `ADAPTER-001` не начинать до Pi gate.
-5. P2 начинать только после явного use case; новые YAML-поля и runtime seams не
+1. Подготовить отдельный минимальный strict-promotion change и его review; до него сохранять `guarded`.
+2. Собрать Pi-backed `EVAL-001`; не считать synthetic benchmark production evidence.
+3. На этой базе закрыть `EVAL-002` и `API-001`; `ADAPTER-001` не начинать до Pi gate.
+4. P2 начинать только после явного use case; новые YAML-поля и runtime seams не
    добавлять ради гипотетического будущего.
 
 Подробный реестр неизвестных, исходные свидетельства и условия возврата к

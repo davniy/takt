@@ -187,13 +187,37 @@ temporary workspace paths в репозитории не сохранялись.
 Идентичность запуска: Pi `0.84.1`, final bundled extension SHA-256
 `7906aa07ddc82ffe445ca39b54bce4c8f78b90f5260b7068b8d760c6e3d77774`.
 Первый полный PASS переводит machine-readable host status в
-`live_verified=true`, но не в `strict`: независимый повтор остаётся
-`repeat_live_conformance` и является следующим обязательным шагом.
+`live_verified=true`, но не в `strict`.
 
 Во время tool deny provider вернул отдельную ошибку для запроса с пустым
 набором tools; это не изменило наблюдаемый policy deny, отсутствие marker или
 completion/recovery decisions и зафиксировано как диагностическое ограничение
 текущего aihub endpoint, а не как успешное выполнение probe.
+
+### Pi 0.84.1 independent repeat full host conformance — 2026-08-22
+
+Повтор boundary sequence выполнен на том же pinned Pi `0.84.1`, финальном
+bundled extension и отдельном чистом disposable workspace. Проверены те же
+пять границ; raw transcript, credentials и временные пути не сохранялись.
+
+| Boundary | Result | Observed evidence |
+|---|---|---|
+| command interception | PASS | managed plan preview создан до main-model output |
+| input interception | PASS | обычный input был направлен в Takt; main model не вызывалась |
+| native tool blocking | PASS | mutating probe получил policy deny при работающем daemon и fail-closed deny после daemon loss; marker отсутствует |
+| completion blocking | PASS | premature final заменён на `TAKT_COMPLETION_BLOCKED`, streaming text не показан |
+| daemon recovery | PASS | после restart `/takt-status` восстановил тот же plan ID `plan-8f9905069d85f24c69beee1b` |
+
+Независимый repeat подтверждает полный host conformance на Pi `0.84.1`.
+Model identity — `aihub/Qwen/Qwen3-Coder-Next`; bundled extension SHA-256 —
+`7906aa07ddc82ffe445ca39b54bce4c8f78b90f5260b7068b8d760c6e3d77774`,
+disposable probe driver SHA-256 —
+`5f42c3e39d4734ef5cb10ee29412e7571568696fba3cdd5676b10f4a3b6f5b24`.
+Machine-readable status остаётся `enforcement=guarded` и
+`strict_allowed=false`: capability gap закрыт, но promotion в strict требует
+отдельного явного изменения политики. Во время fail-closed tool probe aihub
+снова сообщил ограничение `tools=[]`; это диагностическая особенность
+endpoint, не выполнение mutating tool и не основание считать marker созданным.
 
 ## Post-audit repair — 2026-08-10
 
