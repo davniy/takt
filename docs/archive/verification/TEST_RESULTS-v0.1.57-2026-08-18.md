@@ -135,6 +135,35 @@ Live-срез использовал пять изолированных Go-за
 - Reproduced implementation defects were fixed: obsolete OpenCode registrar API, policy deny misclassified as transport outage, common CLI flags appended after `--`, hidden headless diagnostics, and a stale `check-docs.sh` source assertion. TypeScript runtime/assignability contracts and Go regressions cover them.
 - Bundled integrations remain `guarded`: no live evidence was obtained for OpenCode tool/completion blocking or for Pi input/tool/recovery/completion blocking.
 
+### Pi 0.84.1 follow-up — 2026-08-21
+
+Повторная live-проверка использовала `aihub/Qwen/Qwen3.6-27B`. Credentials,
+provider configuration, Session ID и временные workspace paths не сохранялись.
+
+| Host | Version | Adapter fresh | Adapter resume | Extension load | Command | Input | Tool | Recovery | Completion |
+|---|---|---|---|---|---|---|---|---|---|
+| Pi | 0.84.1 | PASS | PASS | PASS | PASS | PASS | NOT VERIFIED | PASS | NOT VERIFIED |
+
+- adapter fresh вернул версию и Session ID, а resume сохранил exact Session ID;
+- реальный extension показал preview/confirmation до вызова основной модели,
+  перехватил `/takt` и после подтверждения направил обычный input в Takt без
+  вызова основной модели;
+- при остановленном daemon managed input был заблокирован fail-closed; после
+  restart `/takt-status` восстановил ту же durable waiting-сессию через
+  `host find`;
+- direct `host guard-tool` подтвердил policy decision deny для `edit` и allow
+  для `grep`, но не прошёл через Pi `tool_call` hook и поэтому не считается
+  доказательством tool blocking. Completion проверялся только direct CLI guard;
+  у Pi extension нет подтверждённого completion hook;
+- fingerprints: Pi CLI entrypoint SHA-256
+  `840d1e8e689ed9e4937bcb00b9a810e02a8567d9afb10a47097f11ca93ea1521`;
+  bundled Pi extension `integrations/coding-agent-host-control/pi/index.ts`
+  SHA-256
+  `70da49374d36fab58e3abe305cd06342bb5fdc7f5db01ff8873a751e44f81a21`.
+
+Pi host-control остаётся `guarded`, `strict_allowed=false`; для полного
+conformance всё ещё нужны live tool и completion boundaries.
+
 ## Post-audit repair — 2026-08-10
 
 PASS на ветке `fix/release-gate-validation`:

@@ -26,7 +26,7 @@ Route DSL/micro DSL, их examples, validators, benchmarks и evaluation fixture
 | `REL-001` | Синхронизировать versioned-срез после `v0.1.63-alpha` | maintainer | `VERSION`, `internal/version`, README, specification/status и changelog согласованы на `0.1.64-alpha`; contract test проходит | — | **закрыто в `v0.1.64-alpha`** |
 | `FLOW-001` | Pi-backed стабилизация основных flow-функций | runtime/flow owner | На pinned Pi пройдены representative journeys `validate → run → status/events/artifacts`, approval/answer, retry/recovery, governed child/matrix и deterministic evaluation; каждый найденный дефект получает regression contract | `HOST-002` для стабильного assistant path | **закрыто: authored Pi architect gate `run-83d32c95f6485ecc24b86fe4` дал `true_accept`, `valid:true`; добавлены inventory и parser regression contracts** |
 | `HOST-001` | Доказать strict host control для Pi | integration owner | На pinned Pi пройдены command/input interception, tool blocking, completion blocking и recovery; сохранены redacted logs/fingerprints; только тогда `strict_allowed=true` | `HOST-002` | открыто, `guarded` |
-| `HOST-002` | Зафиксировать и проверить реально поддерживаемую версию Pi | integration owner | Выбрана pinned версия Pi и повторён полный conformance; текущее сохранённое evidence относится к Pi `0.83.0`, локально наблюдается Pi `0.84.1` | credentials и live Pi | **следующий приоритет** |
+| `HOST-002` | Зафиксировать и проверить реально поддерживаемую версию Pi | integration owner | Выбрана pinned версия Pi и повторён полный conformance; актуальная evidence version — Pi `0.84.1` | live Pi tool/completion boundaries | **в работе**: adapter fresh/resume и host extension/command/input/recovery PASS; tool/completion NOT VERIFIED |
 
 Pi — beta-tested assistant path, но до закрытия `HOST-001`/`HOST-002` его
 host-control остаётся `guarded`. Version probe или fresh/resume smoke сами по
@@ -59,8 +59,10 @@ adapters, RBAC) не являются backlog ядра до появления �
 
 ## Порядок работы
 
-1. Закрыть `HOST-002`: зафиксировать Pi `0.84.1` и повторить полный conformance.
-2. Получить полное Pi host evidence для `HOST-001`, сохраняя `guarded` до strict criteria.
+1. Дозакрыть `HOST-002`/`HOST-001`: получить Pi `0.84.1` tool/completion
+   evidence, сохраняя `guarded` до полного strict criteria.
+2. Зафиксировать повторяемый full-conformance запуск после появления этих
+   host boundaries.
 3. Собрать Pi-backed `EVAL-001`; не считать synthetic benchmark production evidence.
 4. На этой базе закрыть `EVAL-002` и `API-001`; `ADAPTER-001` не начинать до Pi gate.
 5. P2 начинать только после явного use case; новые YAML-поля и runtime seams не

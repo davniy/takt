@@ -529,7 +529,18 @@ takt compatibility check --config .takt/config.yaml
 takt compatibility check --config .takt/config.yaml --live
 ```
 
-Session adapter compatibility не равна host-control compatibility. Live smoke с Pi `0.83.0` (`aihub/Qwen/Qwen3.6-27B`) и OpenCode `1.18.14` (`aihub-sbt/Qwen/Qwen3.6-27B`) подтвердил fresh/exact resume обоих adapters. Для host-control подтверждены Pi extension load/command interception и OpenCode plugin load/command/input/recovery; Pi input/tool/recovery/completion и OpenCode tool/completion остаются непроверенными. Поэтому bundled integrations сохраняют `guarded`, а `strict_allowed` остаётся `false`. `takt-assistant/v1alpha1` сохраняется для чтения старых wrappers и помечен deprecated для новых интеграций; целевой process protocol — `v1alpha2`.
+Session adapter compatibility не равна host-control compatibility. Последний
+Pi live smoke на evidence version `0.84.1` (`aihub/Qwen/Qwen3.6-27B`)
+подтвердил adapter fresh/exact resume, extension load, command/input
+interception и durable recovery после restart daemon. Pi tool/completion
+boundaries остаются непроверенными. Исторический OpenCode `1.18.14` smoke
+подтвердил fresh/exact resume и plugin load/command/input/recovery, но не
+tool/completion. Поэтому bundled integrations сохраняют `guarded`, а
+`strict_allowed` остаётся `false`. Redacted evidence и source/binary
+fingerprints сохранены в
+[`archive/verification/TEST_RESULTS-v0.1.57-2026-08-18.md`](archive/verification/TEST_RESULTS-v0.1.57-2026-08-18.md).
+`takt-assistant/v1alpha1` сохраняется для чтения старых wrappers и помечен
+deprecated для новых интеграций; целевой process protocol — `v1alpha2`.
 
 В machine-readable matrix значение `support: supported-alpha` описывает
 контрактную/протокольную зрелость adapter surface, а не beta-статус

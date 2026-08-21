@@ -22,6 +22,10 @@
   исторические smoke и fixtures не являются текущим release gate.
   Machine-readable `supported-alpha` для adapter protocol отделён от зрелости
   пользовательского Pi-пути.
+- Live evidence на Pi `0.84.1` подтверждает adapter fresh/exact resume,
+  extension load, command/input interception и durable recovery после restart
+  daemon. Tool/completion остаются непроверенными, поэтому host-control
+  сохраняет `guarded` и `strict_allowed=false`.
 
 ## v0.1.64-alpha
 
