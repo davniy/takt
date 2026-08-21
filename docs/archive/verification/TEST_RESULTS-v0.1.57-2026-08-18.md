@@ -137,12 +137,12 @@ Live-срез использовал пять изолированных Go-за
 
 ### Pi 0.84.1 follow-up — 2026-08-21
 
-Повторная live-проверка использовала `aihub/Qwen/Qwen3.6-27B`. Credentials,
+Повторная live-проверка использовала `aihub/Qwen/Qwen3-Coder-Next`. Credentials,
 provider configuration, Session ID и временные workspace paths не сохранялись.
 
 | Host | Version | Adapter fresh | Adapter resume | Extension load | Command | Input | Tool | Recovery | Completion |
 |---|---|---|---|---|---|---|---|---|---|
-| Pi | 0.84.1 | PASS | PASS | PASS | PASS | PASS | NOT VERIFIED | PASS | NOT VERIFIED |
+| Pi | 0.84.1 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 
 - adapter fresh вернул версию и Session ID, а resume сохранил exact Session ID;
 - реальный extension показал preview/confirmation до вызова основной модели,
@@ -151,18 +151,23 @@ provider configuration, Session ID и временные workspace paths не с
 - при остановленном daemon managed input был заблокирован fail-closed; после
   restart `/takt-status` восстановил ту же durable waiting-сессию через
   `host find`;
-- direct `host guard-tool` подтвердил policy decision deny для `edit` и allow
-  для `grep`, но не прошёл через Pi `tool_call` hook и поэтому не считается
-  доказательством tool blocking. Completion проверялся только direct CLI guard;
-  у Pi extension нет подтверждённого completion hook;
+- native `tool_call` hook получил mutating probe, Takt вернул policy deny до
+  исполнения, а marker-файл не появился; read-only tool path оставлен
+  доступным;
+- streaming assistant completion была скрыта, premature final заменён на
+  `TAKT_COMPLETION_BLOCKED`, а production extension не запускал follow-up;
 - fingerprints: Pi CLI entrypoint SHA-256
   `840d1e8e689ed9e4937bcb00b9a810e02a8567d9afb10a47097f11ca93ea1521`;
-  bundled Pi extension `integrations/coding-agent-host-control/pi/index.ts`
-  SHA-256
-  `70da49374d36fab58e3abe305cd06342bb5fdc7f5db01ff8873a751e44f81a21`.
+  live-probed bundled Pi extension source SHA-256
+  `aaa88e447bcbec27df6a7abbd48414d96682a270cfa3760bf100e148af6b9871`;
+  последующее type-only narrowing до canonical `MessageEndEvent` не изменяет
+  emitted JavaScript, final source SHA-256 —
+  `7906aa07ddc82ffe445ca39b54bce4c8f78b90f5260b7068b8d760c6e3d77774`.
 
-Pi host-control остаётся `guarded`, `strict_allowed=false`; для полного
-conformance всё ещё нужны live tool и completion boundaries.
+Pi host-control остаётся `guarded`, `strict_allowed=false`; отдельные tool и
+completion boundaries подтверждены, но для strict всё ещё нужен один
+повторяемый полный command/input/tool/completion/recovery suite на финальном
+extension.
 
 ## Post-audit repair — 2026-08-10
 

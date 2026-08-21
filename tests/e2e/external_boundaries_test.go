@@ -660,12 +660,12 @@ func TestHostIntegrationSourceContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	pi, opencode := string(piBytes), string(opencodeBytes)
-	for _, needle := range []string{`envelope.result`, `pi.registerCommand("takt"`, `pi.on("input"`, `pi.on("tool_call"`, `return { action: "handled" as const }`, `["host", "status", cached.id]`, `"--enforcement", "guarded"`} {
+	for _, needle := range []string{`envelope.result`, `pi.registerCommand("takt"`, `pi.on("input"`, `pi.on("tool_call"`, `pi.on("message_end"`, `pi.registerMarkdownTransformer`, `TAKT_COMPLETION_BLOCKED`, `return { action: "handled" as const }`, `["host", "status", cached.id]`, `"--enforcement", "guarded"`} {
 		if !strings.Contains(pi, needle) {
 			t.Fatalf("Pi integration missing %q", needle)
 		}
 	}
-	if strings.Contains(pi, "before_agent_start") || strings.Contains(pi, "completion-blocking") {
+	if strings.Contains(pi, "before_agent_start") {
 		t.Fatal("Pi integration advertises unsupported lifecycle hook")
 	}
 	for _, needle := range []string{`envelope.result`, `"chat.message": onMessage`, `"tool.execute.before": onTool`, `The main LLM was not invoked`, `["host", "status", cached.id]`, `"--enforcement", "guarded"`} {
@@ -695,6 +695,11 @@ func TestHostIntegrationSourceContract(t *testing.T) {
 				}
 			}
 		}
+	}
+	piManifest := filepath.Join(repoRoot, "integrations", "coding-agent-host-control", "pi", "package.json")
+	piData, _ := os.ReadFile(piManifest)
+	if !strings.Contains(string(piData), `"@earendil-works/pi-coding-agent": "0.84.1"`) {
+		t.Fatal("Pi package metadata must pin the live 0.84.1 contract")
 	}
 	opManifest := filepath.Join(repoRoot, "integrations", "coding-agent-host-control", "opencode", "package.json")
 	opData, _ := os.ReadFile(opManifest)

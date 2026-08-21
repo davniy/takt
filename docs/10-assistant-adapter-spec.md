@@ -529,11 +529,15 @@ takt compatibility check --config .takt/config.yaml
 takt compatibility check --config .takt/config.yaml --live
 ```
 
-Session adapter compatibility не равна host-control compatibility. Последний
-Pi live smoke на evidence version `0.84.1` (`aihub/Qwen/Qwen3.6-27B`)
+Session adapter compatibility не равна host-control compatibility. Текущий
+pinned Pi host contract — `@earendil-works/pi-coding-agent` `0.84.1`;
+последний live smoke на evidence version `0.84.1` (`aihub/Qwen/Qwen3-Coder-Next`)
 подтвердил adapter fresh/exact resume, extension load, command/input
-interception и durable recovery после restart daemon. Pi tool/completion
-boundaries остаются непроверенными. Исторический OpenCode `1.18.14` smoke
+interception, durable recovery после restart daemon, native tool-call deny,
+streaming suppression и final-completion replacement. Это evidence отдельных
+границ, а не повторяемого полного conformance suite: `strict_allowed` поэтому
+остаётся `false`, а `full_live_conformance` остаётся missing. Исторический
+OpenCode `1.18.14` smoke
 подтвердил fresh/exact resume и plugin load/command/input/recovery, но не
 tool/completion. Поэтому bundled integrations сохраняют `guarded`, а
 `strict_allowed` остаётся `false`. Redacted evidence и source/binary

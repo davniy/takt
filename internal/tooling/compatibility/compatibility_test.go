@@ -29,10 +29,10 @@ func TestCurrentMatrixSeparatesSessionAndHostContracts(t *testing.T) {
 	for _, item := range matrix.Hosts {
 		if item.Host == "pi" {
 			piHost = true
-			if item.Enforcement != "guarded" || item.StrictAllowed || item.LiveVerified {
+			if item.TargetContract != "0.84.1" || item.Enforcement != "guarded" || item.StrictAllowed || item.LiveVerified {
 				t.Fatalf("bad pi host policy: %+v", item)
 			}
-			if len(item.Capabilities) != 4 || len(item.MissingForStrict) != 1 || item.MissingForStrict[0] != "completion_blocking" {
+			if len(item.Capabilities) != 5 || len(item.MissingForStrict) != 1 || item.MissingForStrict[0] != "full_live_conformance" {
 				t.Fatalf("bad pi host capability boundary: %+v", item)
 			}
 		}

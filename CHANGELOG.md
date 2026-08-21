@@ -24,8 +24,12 @@
   пользовательского Pi-пути.
 - Live evidence на Pi `0.84.1` подтверждает adapter fresh/exact resume,
   extension load, command/input interception и durable recovery после restart
-  daemon. Tool/completion остаются непроверенными, поэтому host-control
-  сохраняет `guarded` и `strict_allowed=false`.
+  daemon, native tool-call deny и completion suppression/replacement. Полный
+  repeatable conformance suite ещё не выполнен, поэтому host-control сохраняет
+  `guarded` и `strict_allowed=false`.
+- Pi host extension теперь типизирован против pinned `@earendil-works/pi-coding-agent`
+  `0.84.1` и имеет deterministic contract на native tool/completion boundaries;
+  это не заменяет live conformance и не повышает enforcement до `strict`.
 
 ## v0.1.64-alpha
 

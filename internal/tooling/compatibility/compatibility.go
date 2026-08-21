@@ -88,7 +88,7 @@ func CurrentMatrix() Matrix {
 			{Type: "mock", Support: "internal", Verification: "test-only", Notes: []string{"Not a production assistant contract."}},
 		},
 		Hosts: []HostPolicy{
-			{Host: "pi", Integration: "integrations/coding-agent-host-control/pi", TargetContract: "0.73.1", Enforcement: "guarded", LiveVerified: false, StrictAllowed: false, Capabilities: []string{"command_interception", "input_interception", "tool_call_blocking", "session_recovery"}, MissingForStrict: []string{"completion_blocking"}, Notes: []string{"Bundled extension is intentionally guarded until live conformance on the exact deployed Pi version."}},
+			{Host: "pi", Integration: "integrations/coding-agent-host-control/pi", TargetContract: "0.84.1", Enforcement: "guarded", LiveVerified: false, StrictAllowed: false, Capabilities: []string{"command_interception", "input_interception", "tool_call_blocking", "completion_blocking", "session_recovery"}, MissingForStrict: []string{"full_live_conformance"}, Notes: []string{"Bundled extension targets the pinned live Pi contract; tool/completion boundaries are live-verified, but strict remains disabled until the complete repeatable conformance suite passes."}},
 			{Host: "opencode", Integration: "integrations/coding-agent-host-control/opencode", TargetContract: "V2 beta", Enforcement: "guarded", LiveVerified: false, StrictAllowed: false, Capabilities: []string{"command_interception", "input_interception", "tool_call_blocking", "session_recovery"}, MissingForStrict: []string{"verified_completion_blocking"}, Notes: []string{"Context-abort/model-dispatch behavior requires live verification on the pinned OpenCode build."}},
 		},
 		DomainAdapters: []DomainAdapterPolicy{

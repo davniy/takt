@@ -1,7 +1,21 @@
-declare module "@mariozechner/pi-coding-agent" {
+declare module "@earendil-works/pi-coding-agent" {
+  type AssistantMessage = {
+    role: "assistant"
+    stopReason: string
+    content: unknown[]
+  }
+
+  type AgentMessage = AssistantMessage | { role: "user"; content: string | unknown[] }
+
+  export interface MessageEndEvent {
+    type: "message_end"
+    message: AgentMessage
+  }
+
   export interface ExtensionContext {
     cwd: string
     waitForIdle(): Promise<void>
+    isIdle(): boolean
     sessionManager: {
       getSessionId?(): string
       getSessionFile?(): string
@@ -20,9 +34,15 @@ declare module "@mariozechner/pi-coding-agent" {
       description: string
       handler(args: string, ctx: ExtensionContext): Promise<void>
     }): void
+    registerMarkdownTransformer(transformer: (markdown: string, context: {
+      messageType: "user" | "assistant" | "assistant-thinking"
+      isStreaming: boolean
+      availableWidth: number
+    }) => string): void
     on(name: "session_start", handler: (event: unknown, ctx: ExtensionContext) => Promise<void>): void
     on(name: "input", handler: (event: { source: string; text: string }, ctx: ExtensionContext) => Promise<{ action: "continue" | "handled" }>): void
-    on(name: "tool_call", handler: (event: { toolName: string }, ctx: ExtensionContext) => Promise<void | { block: true; reason: string }>): void
+    on(name: "tool_call", handler: (event: { toolName: string }, ctx: ExtensionContext) => Promise<void | { block?: boolean; reason?: string }>): void
+    on(name: "message_end", handler: (event: MessageEndEvent, ctx: ExtensionContext) => Promise<void | { message: AgentMessage }>): void
     on(name: "user_bash", handler: (event: unknown, ctx: ExtensionContext) => Promise<void | { result: { output: string; exitCode: number; cancelled: boolean; truncated: boolean } }>): void
     on(name: "session_before_switch" | "session_before_fork", handler: (event: unknown, ctx: ExtensionContext) => Promise<void | { cancel: true }>): void
   }
@@ -41,7 +61,7 @@ declare module "node:fs/promises" {
   export function mkdir(path: string, options: { recursive: boolean; mode: number }): Promise<void>
   export function readFile(path: string, encoding: "utf8"): Promise<string>
   export function rm(path: string, options: { force: boolean }): Promise<void>
-  export function writeFile(path: string, data: string, options: { mode: number }): Promise<void>
+  export function writeFile(path: string, data: string, options?: { mode?: number }): Promise<void>
 }
 declare module "node:path" {
   export function dirname(path: string): string

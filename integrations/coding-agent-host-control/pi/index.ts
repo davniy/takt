@@ -3,7 +3,7 @@ import { execFile } from "node:child_process"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { promisify } from "node:util"
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent"
+import type { ExtensionAPI, ExtensionContext, MessageEndEvent } from "@earendil-works/pi-coding-agent"
 
 const execFileAsync = promisify(execFile)
 const ACTIVE = new Set(["preview", "managed", "waiting", "paused"])
@@ -17,6 +17,7 @@ type Notice = { id: string; event: string; message: string }
 type NoticeList = { notifications: Notice[] }
 type RunList = { runs: Array<{ id: string }> }
 type CachedState = { session: HostSession; host_session_id: string; updated_at: string }
+type AssistantMessage = Extract<MessageEndEvent["message"], { role: "assistant" }>
 
 function unwrap<T>(stdout: string): T {
   const envelope = JSON.parse(stdout) as Envelope<T>
@@ -65,16 +66,34 @@ async function clearCache(cwd: string, hostID: string): Promise<void> {
   await rm(cachePath(cwd, hostID), { force: true })
 }
 
+function finalAssistantMessage(message: MessageEndEvent["message"]): message is AssistantMessage {
+  if (message.role !== "assistant" || message.stopReason !== "stop") return false
+  return !message.content?.some((part) => {
+    if (!part || typeof part !== "object") return false
+    const type = (part as { type?: unknown }).type
+    return type === "toolCall" || type === "tool_use"
+  })
+}
+
+function blockedCompletion(message: AssistantMessage): AssistantMessage {
+  return { ...message, content: [{ type: "text", text: "TAKT_COMPLETION_BLOCKED" }] }
+}
+
 export default function taktHostControl(pi: ExtensionAPI): void {
   let managed: HostSession | undefined
   let transportAvailable = true
   let savedTools: string[] | undefined
 
+  pi.registerMarkdownTransformer((markdown, context) => {
+    if (active(managed) && context.messageType === "assistant" && context.isStreaming) return ""
+    return markdown
+  })
+
   const applyToolMode = () => {
     if (active(managed)) {
-      savedTools ??= pi.getActiveTools()
+      const tools = savedTools ??= pi.getActiveTools()
       const allowed = transportAvailable
-        ? savedTools.filter((name) => ["read", "grep", "find", "ls", "diagnostics"].includes(name))
+        ? tools.filter((name) => ["read", "grep", "find", "ls", "diagnostics"].includes(name))
         : []
       pi.setActiveTools(allowed)
     } else if (savedTools) {
@@ -160,7 +179,7 @@ export default function taktHostControl(pi: ExtensionAPI): void {
       const result = await takt<HostBegin>(ctx.cwd, [
         "host", "begin", "--host", "pi", "--host-session", id, "--profile", "code",
         "--enforcement", "guarded", "--command-interception", "--input-interception",
-        "--tool-call-blocking", "--session-recovery", "--", goal,
+        "--tool-call-blocking", "--completion-blocking", "--session-recovery", "--", goal,
       ])
       transportAvailable = true
       managed = result.session
@@ -318,6 +337,19 @@ export default function taktHostControl(pi: ExtensionAPI): void {
     } catch (error) {
       await failClosed(ctx, error)
       return { block: true, reason: "Takt guard unavailable; managed mode is fail-closed" }
+    }
+  })
+
+  pi.on("message_end", async (event, ctx) => {
+    await refresh(ctx)
+    if (!active(managed) || !finalAssistantMessage(event.message)) return
+    if (!transportAvailable) return { message: blockedCompletion(event.message) }
+    try {
+      const decision = await takt<Guard>(ctx.cwd, ["host", "guard-completion", managed.id, "--kind", "final"])
+      if (!decision.allowed) return { message: blockedCompletion(event.message) }
+    } catch (error) {
+      await failClosed(ctx, error)
+      return { message: blockedCompletion(event.message) }
     }
   })
 

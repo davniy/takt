@@ -2,7 +2,7 @@
 
 Host extensions make `/takt` a host operation rather than an instruction to the main LLM.
 
-- `pi/`: extension compiled against the Pi `0.73.1` type contract and live-smoked on Pi `0.84.1`;
+- `pi/`: extension compiled against the pinned Pi `0.84.1` type contract and live-smoked on Pi `0.84.1`;
 - `opencode/`: OpenCode plugin and command files, compiled and live-smoked on `1.18.14`.
 
 Both require `takt` on `PATH` and a local daemon. They persist a small fail-closed client cache in `.takt/host-client-state/`: losing the daemon does not silently return the session to unrestricted tools or send steering text to the main LLM.
@@ -13,7 +13,7 @@ The Go host-control API supports `advisory|guarded|strict`. `strict` is accepted
 
 The bundled Pi and OpenCode integrations declare **guarded**, not strict:
 
-- Pi `0.84.1` has verified command/input interception and durable recovery after daemon restart, but tool/completion remain incomplete live boundaries;
+- Pi `0.84.1` has verified command/input interception, durable recovery after daemon restart, native tool-call deny and completion suppression/replacement; the repeatable full conformance suite is still pending, so strict remains disabled;
 - OpenCode `1.18.14` has verified command/input interception and recovery, but tool/completion remain incomplete live boundaries and package metadata keeps `verified: false`.
 
 Corporate rollout must pin the target host version and run a live contract suite before upgrading either adapter to strict.

@@ -30,8 +30,9 @@ cat > "$TMP/tsconfig.json" <<EOF2
     "outDir": "$TMP/out"
   },
   "files": [
-    "$ROOT/integrations/coding-agent-host-control/contracts/pi-0.73.1.d.ts",
+    "$ROOT/integrations/coding-agent-host-control/contracts/pi-0.84.1.d.ts",
     "$ROOT/integrations/coding-agent-host-control/contracts/opencode-1.18.14.d.ts",
+    "$ROOT/integrations/coding-agent-host-control/contracts/pi-blocking-contract.mts",
     "$ROOT/integrations/coding-agent-host-control/contracts/opencode-blocking-contract.mts",
     "$ROOT/integrations/coding-agent-host-control/contracts/opencode-entrypoint-contract.mts",
     "$ROOT/integrations/coding-agent-host-control/pi/index.ts",
@@ -44,6 +45,18 @@ cat > "$TMP/takt" <<'EOF2'
 #!/bin/sh
 case "$*" in
   *"daemon start"*)
+    exit 0
+    ;;
+  *"host find"*"--host pi"*)
+    if [ -f daemon-down ]; then
+      printf '%s\n' '{"ok":false,"error":{"message":"daemon unavailable"}}'
+      exit 1
+    fi
+    printf '%s\n' '{"ok":true,"result":{"session":{"id":"host-pi-contract","status":"managed","plan_id":"plan"},"plan":{"record":{}}}}'
+    exit 0
+    ;;
+  *"host guard-completion"*)
+    printf '%s\n' '{"ok":true,"result":{"allowed":false,"reason":"final completion blocked by policy"}}'
     exit 0
     ;;
   *"host begin"*"-- goal --workspace"*)
@@ -71,5 +84,6 @@ mkdir "$TMP/workspace"
 (
   cd "$TMP/workspace"
   PATH="$TMP:$PATH" node "$TMP/out/contracts/opencode-blocking-contract.mjs"
+  PATH="$TMP:$PATH" node "$TMP/out/contracts/pi-blocking-contract.mjs"
 )
 echo 'coding-agent host integrations TypeScript: PASS'

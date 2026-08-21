@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "0.73.1"
+    "@earendil-works/pi-coding-agent": "0.84.1"
   },
   "devDependencies": {
-    "@mariozechner/pi-coding-agent": "0.73.1",
+    "@earendil-works/pi-coding-agent": "0.84.1",
     "@types/node": "22.10.2",
     "typescript": "5.7.2"
   }
