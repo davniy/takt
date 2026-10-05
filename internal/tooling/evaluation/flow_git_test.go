@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"takt/internal/config"
 )
@@ -24,7 +25,17 @@ func TestPrepareFlowRepeatCommitsProfileBeforeBaseline(t *testing.T) {
 	if branch := strings.TrimSpace(gitOutput(t, prepared.ControlWorkspace, "branch", "--show-current")); branch != "main" {
 		t.Fatalf("branch = %q", branch)
 	}
-	if dates := gitOutput(t, prepared.ControlWorkspace, "show", "-s", "--format=%aI%n%cI", "HEAD"); dates != "2000-01-01T00:00:00+00:00\n2000-01-01T00:00:00+00:00\n" {
+	// git renders the UTC offset as "+00:00" on older versions and "Z" on
+	// newer ones; compare parsed instants instead of the literal format.
+	epoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	dates := gitOutput(t, prepared.ControlWorkspace, "show", "-s", "--format=%aI%n%cI", "HEAD")
+	for _, line := range strings.Fields(dates) {
+		ts, err := time.Parse(time.RFC3339, line)
+		if err != nil || !ts.Equal(epoch) {
+			t.Fatalf("commit dates = %q", dates)
+		}
+	}
+	if len(strings.Fields(dates)) != 2 {
 		t.Fatalf("commit dates = %q", dates)
 	}
 	requireGitTracked(t, prepared.ControlWorkspace, ".takt/profiles/code/workflows/feature-development.yaml")
