@@ -51,10 +51,77 @@ jobs:
           git config --global user.name "Takt CI"
           git config --global user.email "takt-ci@example.invalid"
 
-      - name: Run release gate
+      # scripts/verify.sh stages run as separate steps with tee'd logs so the
+      # failing stage is visible in the job view and full output survives as
+      # an artifact when the blob log endpoint is unreachable.
+      - name: Gate: fmt
+        run: gofmt -w cmd internal sdk reference tests
+
+      - name: Gate: vet
+        run: go vet ./...
+
+      - name: Gate: test-all
+        run: make GO_TEST_P=8 test-all 2>&1 | tee gate-test-all.log
+
+      - name: Gate: journeys
+        run: make journeys 2>&1 | tee gate-journeys.log
+
+      - name: Gate: race-all
+        run: make GO_TEST_P=8 race-all 2>&1 | tee gate-race-all.log
+
+      - name: Gate: build and smoke
         env:
           TAKT_REQUIRE_TYPESCRIPT: "1"
-        run: ./scripts/verify.sh
+        run: |
+          {
+            go build -o bin/takt ./cmd/takt
+            ./scripts/test-host-integrations-typescript.sh
+          } 2>&1 | tee gate-smoke.log
+
+      - name: Gate: validate examples
+        run: |
+          ./bin/takt validate examples/route-dsl/workflow.yaml \
+            --config examples/route-dsl/config.yaml \
+            --workspace examples/route-dsl \
+            --json >/dev/null
+          ./bin/takt validate examples/hook-retry/workflow.yaml \
+            --config examples/hook-retry/config.yaml \
+            --workspace examples/hook-retry \
+            --json >/dev/null
+          ./bin/takt validate examples/pi-smoke/workflow.yaml \
+            --config examples/pi-smoke/config.yaml \
+            --workspace . \
+            --json >/dev/null
+          ./bin/takt validate examples/opencode-smoke/workflow.yaml \
+            --config examples/opencode-smoke/config.yaml \
+            --workspace . \
+            --json >/dev/null
+          ./bin/takt validate examples/route-dsl-e2e/workflow.yaml \
+            --config examples/route-dsl-e2e/config.yaml \
+            --workspace examples/route-dsl-e2e \
+            --json >/dev/null
+          ./bin/takt validate examples/composition/workflow.yaml \
+            --config examples/composition/config.yaml \
+            --workspace examples/composition \
+            --json >/dev/null
+          ./bin/takt validate examples/external-executor/workflow.yaml \
+            --config examples/external-executor/config.yaml \
+            --workspace . \
+            --json >/dev/null
+          ./bin/takt validate examples/authoring-daemon/workflow.yaml \
+            --config examples/authoring-daemon/config.yaml \
+            --workspace examples/authoring-daemon \
+            --warnings-as-errors \
+            --json >/dev/null
+          echo 'verification: PASS'
+
+      - name: Upload gate logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate-logs-${{ github.run_attempt }}
+          path: gate-*.log
+          retention-days: 7
 
   build-and-release:
     name: Build & Publish Release
