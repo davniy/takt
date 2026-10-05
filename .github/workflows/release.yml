@@ -24,7 +24,10 @@ permissions:
 jobs:
   verify:
     name: Release gate (scripts/verify.sh)
-    runs-on: ubuntu-latest
+    # scripts/verify.sh is the maintainer's local (macOS) gate: parts of
+    # tests/e2e production-flow and tooling/evaluation suites are not yet
+    # Linux-clean, so the release gate runs where it is supported.
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
