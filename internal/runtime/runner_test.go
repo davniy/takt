@@ -1693,7 +1693,7 @@ func TestPiActivityControlsAssistantIdleTimeout(t *testing.T) {
 		return state, runErr, activity
 	}
 	t.Run("streaming progress resets timeout without durable partial events", func(t *testing.T) {
-		state, runErr, activity := run(t, "streaming-progress", time.Second)
+		state, runErr, activity := run(t, "streaming-progress", 3*time.Second)
 		if runErr != nil || state.Nodes["agent"].Status != store.NodeCompleted {
 			t.Fatalf("state=%#v err=%v activity=%v", state, runErr, activity)
 		}

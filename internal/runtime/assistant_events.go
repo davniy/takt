@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -39,6 +40,7 @@ type assistantEventCollector struct {
 	err         error
 	onEvent     func()
 	observe     func(assistant.Event)
+	persist     func(assistant.Event)
 	onViolation func()
 	workspace   string
 	artifacts   string
@@ -73,6 +75,9 @@ func (c *assistantEventCollector) Emit(event assistant.Event) {
 		return
 	}
 	if err := c.validateWritePath(event); err != nil {
+		if malformedToolPath(err) {
+			return
+		}
 		if c.onViolation != nil {
 			c.onViolation()
 		}
@@ -86,9 +91,17 @@ func (c *assistantEventCollector) Emit(event assistant.Event) {
 	if c.observe != nil {
 		c.observe(event)
 	}
+	if c.persist != nil {
+		c.persist(event)
+		return
+	}
 	c.mu.Lock()
 	c.events = append(c.events, event)
 	c.mu.Unlock()
+}
+
+func malformedToolPath(err error) bool {
+	return errors.Is(err, assistant.ErrMalformedToolPath)
 }
 
 func (c *assistantEventCollector) validateWritePath(event assistant.Event) error {

@@ -157,6 +157,73 @@ func ValidateAndNormalize(raw string, schema *spec.OutputFormat) (string, error)
 	return encodeCanonical(value)
 }
 
+func ValidateAndNormalizeAssistantOutput(raw string, schema *spec.OutputFormat) (string, error) {
+	if schema == nil {
+		return raw, nil
+	}
+	normalized, strictErr := ValidateAndNormalize(raw, schema)
+	if strictErr == nil {
+		return normalized, nil
+	}
+	var matches []string
+	trimmed := strings.TrimSpace(raw)
+	for i := 0; i < len(trimmed); i++ {
+		if trimmed[i] != '{' && trimmed[i] != '[' {
+			continue
+		}
+		end, ok := assistantJSONSpan(trimmed, i)
+		if !ok {
+			i = len(trimmed) - 1
+			continue
+		}
+		candidate := trimmed[i:end]
+		if normalized, err := ValidateAndNormalize(candidate, schema); err == nil {
+			matches = append(matches, normalized)
+		}
+		i = end - 1
+	}
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("assistant output contains multiple schema-valid JSON values")
+	}
+	return "", strictErr
+}
+
+func assistantJSONSpan(raw string, start int) (int, bool) {
+	stack := []byte{raw[start]}
+	quoted, escaped := false, false
+	for i := start + 1; i < len(raw); i++ {
+		c := raw[i]
+		if quoted {
+			if escaped {
+				escaped = false
+			} else if c == '\\' {
+				escaped = true
+			} else if c == '"' {
+				quoted = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			quoted = true
+		case '{', '[':
+			stack = append(stack, c)
+		case '}', ']':
+			if len(stack) == 0 || (stack[len(stack)-1] == '{' && c != '}') || (stack[len(stack)-1] == '[' && c != ']') {
+				return len(raw), false
+			}
+			stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				return i + 1, true
+			}
+		}
+	}
+	return len(raw), false
+}
+
 func compile(schema *spec.OutputFormat) (*jsonschema.Schema, error) {
 	rawSchema, err := json.Marshal(schema)
 	if err != nil {

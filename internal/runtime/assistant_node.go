@@ -25,6 +25,7 @@ type resolvedAssistantNode struct {
 	Capabilities      []string
 	SessionMode       string
 	SessionID         string
+	MaxTurns          int
 }
 
 func (r *Runner) resolveAssistantNode(state *store.RunState, node spec.Node, local map[string]store.NodeState, feedback, artifacts string) (resolvedAssistantNode, error) {
@@ -73,11 +74,14 @@ func (r *Runner) resolveAssistantNode(state *store.RunState, node spec.Node, loc
 		if err != nil {
 			return resolvedAssistantNode{}, &execution.Error{Kind: execution.KindInternal, Op: "resolve assistant", Err: err}
 		}
-		capabilities, err = validateAdapterPolicy(adapter, policy)
+		capabilities, err = validateAdapterPolicy(adapter, policy, nodeCapabilityExtras(node)...)
 		if err != nil {
 			return resolvedAssistantNode{}, &execution.Error{Kind: execution.KindInternal, Op: "validate assistant capabilities", Err: err}
 		}
 	} else {
+		if node.MaxTurns > 0 {
+			return resolvedAssistantNode{}, &execution.Error{Kind: execution.KindInternal, Op: "validate assistant capabilities", Err: fmt.Errorf("node %q max_turns cannot be enforced by an external executor", node.ID)}
+		}
 		// The external executor receives the effective policy and must attest to
 		// its own capabilities when claiming the task. The policy is still
 		// persisted before the hand-off.
@@ -153,6 +157,7 @@ func (r *Runner) resolveAssistantNode(state *store.RunState, node spec.Node, loc
 		Prompt: renderedPrompt, PersistedPrompt: persistedPrompt, PromptFingerprint: hex.EncodeToString(promptHash[:]), AssistantName: assistantName,
 		ModelName: modelName, Model: model, Policy: policy, Capabilities: capabilities,
 		SessionMode: sessionMode, SessionID: sessionID,
+		MaxTurns: node.MaxTurns,
 	}, nil
 }
 

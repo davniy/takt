@@ -20,7 +20,7 @@
 - `task-route.schema.json` — проверяемое решение Task Router: `workflow|template|dynamic`, сигналы и прогрессивные controls;
 - `evidence-manifest.schema.json` — внутренний EvidenceManifest: baseline, fingerprints известных failures, check-to-evidence mapping и verdict, привязанный к candidate SHA-256;
 - `workspace.schema.json` — bounded multi-repo `takt/v1alpha1 Workspace`: repository IDs, relative paths and acyclic `depends_on`;
-- `workflow.schema.json` — текущий `takt/v1alpha1 Workflow` с `loop_group.max_iterations <= 64`, включая `timeout`, `idle_timeout`, `attempts.backoff`, `sandbox.enforcement`, `always_run`, расширенный `output_format`, `one_success`, approval в цикле, `foreach.parallel` и governed child `workflow`;
+- `workflow.schema.json` — текущий `takt/v1alpha1 Workflow` с `loop_group.max_iterations <= 64`, включая `timeout`, `idle_timeout`, `max_turns`, `attempts.backoff`, `sandbox.enforcement`, `always_run`, расширенный `output_format`, `one_success`, approval в цикле, `foreach.parallel` и governed child `workflow`;
 - `profile.schema.json` — Profile с default workflow и картой именованных `workflows`;
 - `command-frontmatter.schema.json` — frontmatter Markdown-команд;
 - `run-state.schema.json` — состояние Run, parent/child links, pause/abandon/recovery/operator retry, canonical `NodePath`, bounded `loop_iterations[]`, diagnostics/retry/sandbox decisions, fingerprints, revisions, типизированные Node statuses, execution identity и aggregate usage;

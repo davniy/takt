@@ -25,6 +25,14 @@ MCP и daemon являются локальными интерфейсами т�
 
 ## 1.2. Authoring preflight
 
+`run status` optionally includes `assistants[]` for currently running assistant
+nodes in the Run tree. Entries contain `run_id`, `node_id`, `observed_event`,
+`last_event_at` (UTC), optional `diagnostic_code`, `tool`, bounded `message`,
+and configured `idle_timeout`/`timeout` when exposed by session events. An absent
+entry or limit means no corresponding evidence, not zero duration. Diagnostic
+codes describe observed adapter lifecycle events, not inferred provider execution.
+`last_event_at` is the durable journal timestamp, not the transient activity clock.
+
 `takt validate` проверяет неизвестные поля с path-aware `did you mean`,
 command/model/provider references, effective adapter capabilities, статические
 `$<node>.*`/approval/artifact references и несовместимые параметры. Diagnostics
@@ -357,7 +365,7 @@ Root Workflow принимает `name`, `description`, `labels`, `provider`, `m
 `provider` и `context` (`fresh` по умолчанию или `shared` в A1)
 являются декларативными defaults для assistant node.
 
-`timeout` использует формат Go duration: `500ms`, `30s`, `5m`, `1h` и ограничивает всю попытку узла. `idle_timeout` поддерживается AI-узлами и сбрасывается нормализованными событиями активности; для claimed внешнего узла его обслуживает daemon. `always_run: true` запускает cleanup-узел после terminal-состояния всех зависимостей независимо от их результата, но не скрывает failure основного графа.
+`timeout` использует формат Go duration: `500ms`, `30s`, `5m`, `1h` и ограничивает всю попытку узла. `idle_timeout` поддерживается AI-узлами и сбрасывается нормализованными событиями активности; для claimed внешнего узла его обслуживает daemon. `max_turns` — неотрицательное целое, ограничивает число model turns за попытку assistant-узла; поле требует adapter capability `turn_budget` и отклоняется на authoring/resolve для adapters без неё (сейчас поддерживает bundled Pi) и для `executor: external`. `always_run: true` запускает cleanup-узел после terminal-состояния всех зависимостей независимо от их результата, но не скрывает failure основного графа.
 
 `attempts.retry_on` задаёт execution kinds, для которых разрешён автоматический повтор (`exit|start|protocol|internal|timed_out`). Cancellation и неизвестный внешний side effect не являются обычным retry. `attempts.backoff` требует `attempts.max >= 2`: `initial` и `max` — положительные Go duration, `multiplier` по умолчанию 2 и не меньше 1, `jitter` выбирает задержку в диапазоне 50–100% от расчётной. Runtime сохраняет выбранный `not_before` в `NodeState.retry`, поэтому restart/resume не пересчитывает уже принятое ожидание.
 
@@ -400,7 +408,7 @@ provider marker: backoff и все resume входят в ту же workflow-п�
 
 Передаёт assistant встроенный prompt.
 
-Для `command`, `prompt` и `script` можно задать проверяемый JSON-контракт `output_format`. `input.schema` и `output_format` используют один версионированный контракт `takt-schema-subset/v1`, **не полный JSON Schema**. Takt проверяет допустимый subset при authoring, а семантику проверки JSON-значения выполняет `github.com/santhosh-tekuri/jsonschema/v6` в режиме Draft 2020-12; собственного JSON Schema runtime в Takt нет. Поддерживаются `type`, `description`, `properties`, `required`, строковый `enum`, `items`, `minItems/maxItems/uniqueItems`, `minLength/maxLength/pattern`, `minimum/maximum`, `minProperties/maxProperties` и boolean `additionalProperties`. `$ref`, `oneOf/anyOf/allOf`, `const/default/format` и schema-valued `additionalProperties` не поддерживаются. Runtime принимает ровно одно JSON-значение и сохраняет канонический компактный JSON. Нарушение контракта завершает узел ошибкой `protocol`. Машиночитаемая граница доступна через `takt compatibility schema`.
+Для `command`, `prompt` и `script` можно задать проверяемый JSON-контракт `output_format`. `input.schema` и `output_format` используют один версионированный контракт `takt-schema-subset/v1`, **не полный JSON Schema**. Takt проверяет допустимый subset при authoring, а семантику проверки JSON-значения выполняет `github.com/santhosh-tekuri/jsonschema/v6` в режиме Draft 2020-12; собственного JSON Schema runtime в Takt нет. Поддерживаются `type`, `description`, `properties`, `required`, строковый `enum`, `items`, `minItems/maxItems/uniqueItems`, `minLength/maxLength/pattern`, `minimum/maximum`, `minProperties/maxProperties` и boolean `additionalProperties`. `$ref`, `oneOf/anyOf/allOf`, `const/default/format` и schema-valued `additionalProperties` не поддерживаются. Для assistant `command`/`prompt` runtime принимает либо ровно одно JSON-значение, либо единственный schema-valid object/array, окружённый текстом модели; неоднозначные или вложенные кандидаты отклоняются. `script` остаётся строгим и принимает только одно JSON-значение. Нарушение контракта завершает узел ошибкой `protocol`. Машиночитаемая граница доступна через `takt compatibility schema`.
 
 ```yaml
 - id: classify

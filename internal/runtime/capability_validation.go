@@ -45,6 +45,9 @@ func validateCapabilitiesRecursive(wf *spec.Workflow, cfg *spec.Config, workflow
 				return fmt.Errorf("node %q policy: %w", node.ID, err)
 			}
 			if node.Executor == "external" {
+				if node.MaxTurns > 0 {
+					return fmt.Errorf("node %q: max_turns cannot be enforced by an external executor", node.ID)
+				}
 				// External workers attest capabilities at claim time. Validation can
 				// still verify that the requested contract is internally coherent.
 				if node.ToolApproval != nil && node.ToolApproval.Mode == "required" {
@@ -55,7 +58,7 @@ func validateCapabilitiesRecursive(wf *spec.Workflow, cfg *spec.Config, workflow
 				if err != nil {
 					return fmt.Errorf("node %q: %w", node.ID, err)
 				}
-				if _, err := validateAdapterPolicy(adapter, policy); err != nil {
+				if _, err := validateAdapterPolicy(adapter, policy, nodeCapabilityExtras(node)...); err != nil {
 					return fmt.Errorf("node %q assistant %q: %w", node.ID, assistantName, err)
 				}
 			}

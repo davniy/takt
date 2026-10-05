@@ -46,6 +46,36 @@ func TestValidateAndNormalizeUsesSameContract(t *testing.T) {
 	}
 }
 
+func TestValidateAndNormalizeAssistantOutputExtractsOneEmbeddedValue(t *testing.T) {
+	closed := false
+	schema := &spec.OutputFormat{Type: "object", Properties: map[string]spec.OutputFormat{"accepted": {Type: "boolean"}}, Required: []string{"accepted"}, AdditionalProperties: &closed}
+	got, err := ValidateAndNormalizeAssistantOutput("Проверка завершена.\n{\"accepted\":true}", schema)
+	if err != nil || got != `{"accepted":true}` {
+		t.Fatalf("got=%q err=%v", got, err)
+	}
+}
+
+func TestValidateAndNormalizeAssistantOutputRejectsAmbiguousValues(t *testing.T) {
+	schema := &spec.OutputFormat{Type: "object", Properties: map[string]spec.OutputFormat{"accepted": {Type: "boolean"}}, Required: []string{"accepted"}}
+	if _, err := ValidateAndNormalizeAssistantOutput(`first {"accepted":true} then {"accepted":false}`, schema); err == nil || !strings.Contains(err.Error(), "multiple schema-valid") {
+		t.Fatalf("expected ambiguity error, got %v", err)
+	}
+}
+
+func TestValidateAndNormalizeAssistantOutputRejectsUnterminatedCandidate(t *testing.T) {
+	schema := &spec.OutputFormat{Type: "object", Properties: map[string]spec.OutputFormat{"accepted": {Type: "boolean"}}, Required: []string{"accepted"}}
+	if _, err := ValidateAndNormalizeAssistantOutput(`note [unclosed {"accepted":true}`, schema); err == nil {
+		t.Fatal("unterminated candidate must not swallow a following schema-valid object")
+	}
+}
+
+func TestValidateAndNormalizeAssistantOutputDoesNotPromoteNestedValue(t *testing.T) {
+	schema := &spec.OutputFormat{Type: "object", Properties: map[string]spec.OutputFormat{"accepted": {Type: "boolean"}}, Required: []string{"accepted"}}
+	if _, err := ValidateAndNormalizeAssistantOutput(`malformed {"wrong":{"accepted":true}`, schema); err == nil {
+		t.Fatal("malformed outer JSON must not promote a nested object")
+	}
+}
+
 func TestValidateDefinitionCoversSubsetKeywords(t *testing.T) {
 	closed := false
 	min := 2.0

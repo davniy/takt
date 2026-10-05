@@ -83,6 +83,9 @@ func (r *Runner) runBeforeAttemptHooks(ctx context.Context, state *store.RunStat
 func (r *Runner) executeAttempt(ctx context.Context, state *store.RunState, node spec.Node, loopPrevious map[string]store.NodeState, max int) (execResult, error, error) {
 	ns := state.Nodes[node.ID]
 	result, execErr := r.execute(ctx, state, node, loopPrevious)
+	if result.PersistenceError != nil {
+		return result, nil, result.PersistenceError
+	}
 	if errors.Is(execErr, ErrWaiting) {
 		ns.Attempts--
 		reason := "approval"
@@ -243,6 +246,9 @@ func (r *Runner) runProviderExecution(ctx context.Context, state *store.RunState
 		return err
 	}
 	result, execErr := r.execute(attemptCtx, state, node, loopPrevious)
+	if result.PersistenceError != nil {
+		return result.PersistenceError
+	}
 	if errors.Is(execErr, ErrWaiting) {
 		return ErrWaiting
 	}

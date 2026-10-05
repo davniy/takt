@@ -24,6 +24,7 @@ type Request struct {
 	Emit         EventSink
 	Activity     func(string)
 	ToolControl  ToolController
+	MaxTurns     int
 }
 
 type Result struct {

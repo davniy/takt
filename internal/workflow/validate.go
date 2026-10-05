@@ -549,6 +549,12 @@ func validateAttempts(node spec.Node) error {
 }
 
 func validateTiming(node spec.Node) error {
+	if node.MaxTurns < 0 {
+		return fmt.Errorf("node %q max_turns cannot be negative", node.ID)
+	}
+	if node.MaxTurns > 0 && node.Command == "" && node.Prompt == "" {
+		return fmt.Errorf("node %q max_turns is supported only for command or prompt nodes", node.ID)
+	}
 	if node.Timeout != "" {
 		duration, err := time.ParseDuration(node.Timeout)
 		if err != nil || duration <= 0 {

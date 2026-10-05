@@ -595,6 +595,24 @@ func TestValidateRetryBackoffAndTimeoutRetryKind(t *testing.T) {
 	}
 }
 
+func TestValidateAssistantTurnBudget(t *testing.T) {
+	wf := &spec.Workflow{Name: "turn-budget", Nodes: []spec.Node{{ID: "agent", Prompt: "work", MaxTurns: 3}}}
+	if err := Validate(wf); err != nil {
+		t.Fatalf("valid max_turns rejected: %v", err)
+	}
+	wf.Nodes[0].MaxTurns = -1
+	if err := Validate(wf); err == nil || !strings.Contains(err.Error(), "max_turns") {
+		t.Fatalf("negative max_turns accepted: %v", err)
+	}
+}
+
+func TestValidateRejectsTurnBudgetOnBashNode(t *testing.T) {
+	wf := &spec.Workflow{Name: "turn-budget", Nodes: []spec.Node{{ID: "work", Bash: "true", MaxTurns: 3}}}
+	if err := Validate(wf); err == nil || !strings.Contains(err.Error(), "max_turns") {
+		t.Fatalf("bash node with max_turns accepted: %v", err)
+	}
+}
+
 func TestValidateOSSandboxEnforcementOnlyForDeterministicLocalNodes(t *testing.T) {
 	for _, node := range []spec.Node{
 		{ID: "bash", Bash: "true", Sandbox: &spec.SandboxSpec{Enforcement: "required", Network: "deny"}},

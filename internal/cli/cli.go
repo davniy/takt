@@ -357,6 +357,10 @@ func printResult(jsonOut bool, value any) error {
 		fmt.Println(string(b))
 		return nil
 	}
+	if text, ok := formatTextResult(value); ok {
+		fmt.Println(text)
+		return nil
+	}
 	fmt.Printf("%+v\n", value)
 	return nil
 }

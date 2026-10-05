@@ -821,6 +821,7 @@ type execResult struct {
 	ResolvedModel     *store.ModelRef
 	Artifacts         []store.ArtifactRef
 	AssistantEvents   []assistant.Event
+	PersistenceError  error
 	DomainOperation   *store.DomainOperationState
 	Sandbox           *store.SandboxState
 	ProviderAttempt   int

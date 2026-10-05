@@ -55,6 +55,13 @@ func (r *Runner) runParallelWave(ctx context.Context, state *store.RunState, nod
 		}
 	}
 
+	bindings := r.prepareParallelAssistantBindings(state, nodes, previous)
+	ctx = context.WithValue(ctx, assistantBindingKey{}, bindings)
+	liveCtx, writer, err := r.newAssistantLiveWriter(ctx, state)
+	if err != nil {
+		return err
+	}
+	defer writer.cancel()
 	results := make(chan parallelNodeResult, len(nodes))
 	var wg sync.WaitGroup
 	for _, node := range nodes {
@@ -62,7 +69,7 @@ func (r *Runner) runParallelWave(ctx context.Context, state *store.RunState, nod
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			attemptCtx, cancel, err := nodeContext(ctx, node.Timeout)
+			attemptCtx, cancel, err := nodeContext(liveCtx, node.Timeout)
 			if err != nil {
 				results <- parallelNodeResult{node: node, err: &execution.Error{Kind: execution.KindInternal, Op: "node timeout", Err: err}}
 				return
@@ -79,6 +86,9 @@ func (r *Runner) runParallelWave(ctx context.Context, state *store.RunState, nod
 		}()
 	}
 	wg.Wait()
+	if err := writer.finish(state); err != nil {
+		return err
+	}
 	close(results)
 
 	byID := make(map[string]parallelNodeResult, len(nodes))

@@ -103,7 +103,7 @@ func TestPiWorkspaceGuardBlocksDanglingSymlinkEscape(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "check.mjs")
 	if err := os.WriteFile(script, []byte(`import guard from "`+filepath.ToSlash(guardPath)+`"
 let hook
-guard({on(name, fn) { if (name === "tool_call") hook = fn }})
+    guard({on(name, fn) { if (name === "tool_call") hook = fn }, registerTool() {}})
 const result = await hook({toolName: "write", input: {path: "escape/new.go"}})
 if (!result?.block) process.exit(1)
 `), 0o600); err != nil {
@@ -113,6 +113,139 @@ if (!result?.block) process.exit(1)
 	cmd.Env = append(os.Environ(), "TAKT_WORKSPACE="+workspace, "TAKT_ARTIFACTS_DIR="+filepath.Join(t.TempDir(), "artifacts"))
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("native guard accepted dangling symlink escape: %v\n%s", err, output)
+	}
+}
+
+func TestPiWorkspaceGuardBlocksShellEscape(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is required for the native Pi guard regression")
+	}
+	guardPath, cleanup, err := installWorkspaceGuard()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	workspace := filepath.Join(t.TempDir(), "execution")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(workspace), "outside.txt"), []byte("outside\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(t.TempDir(), "check.mjs")
+	if err := os.WriteFile(script, []byte(`import guard from "`+filepath.ToSlash(guardPath)+`"
+let hook
+let bash
+guard({on(name, fn) { if (name === "tool_call") hook = fn }, registerTool(tool) { bash = tool }})
+if (!bash) process.exit(1)
+const result = await bash.execute("escape", {command: "cd .. && cat ../outside.txt"}, undefined, undefined, {cwd: process.env.TAKT_WORKSPACE})
+if (result?.details?.exitCode === 0) process.exit(1)
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(node, script)
+	cmd.Env = append(os.Environ(), "TAKT_WORKSPACE="+workspace, "TAKT_ARTIFACTS_DIR=")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("native guard accepted shell escape: %v\n%s", err, output)
+	}
+}
+
+func TestPiWorkspaceGuardBlocksReadOutsideWorkspace(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is required for the native Pi guard regression")
+	}
+	workspace := filepath.Join(t.TempDir(), "execution")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(filepath.Dir(workspace), "outside.txt")
+	if err := os.WriteFile(outside, []byte("outside\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	guardPath, cleanup, err := installWorkspaceGuard()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	script := filepath.Join(t.TempDir(), "check.mjs")
+	if err := os.WriteFile(script, []byte(`import guard from "`+filepath.ToSlash(guardPath)+`"
+let hook
+guard({on(name, fn) { if (name === "tool_call") hook = fn }, registerTool() {}})
+const result = await hook({toolName: "read", input: {path: "`+filepath.ToSlash(outside)+`"}})
+if (!result?.block) process.exit(1)
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(node, script)
+	cmd.Env = append(os.Environ(), "TAKT_WORKSPACE="+workspace, "TAKT_ARTIFACTS_DIR=")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("native guard accepted read outside workspace: %v\n%s", err, output)
+	}
+}
+
+func TestPiWorkspaceGuardDefaultBashTimeout(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is required for the native Pi guard regression")
+	}
+	guardPath, cleanup, err := installWorkspaceGuard()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	workspace := t.TempDir()
+	script := filepath.Join(t.TempDir(), "check.mjs")
+	if err := os.WriteFile(script, []byte(`import guard from "`+filepath.ToSlash(guardPath)+`"
+let bash
+guard({on() {}, registerTool(tool) { bash = tool }})
+const result = await bash.execute("timeout", {command: "sleep 1"}, undefined, undefined, {cwd: process.env.TAKT_WORKSPACE})
+if (!result?.details?.timedOut || result?.details?.exitCode === 0) process.exit(1)
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(node, script)
+	cmd.Env = append(os.Environ(), "TAKT_WORKSPACE="+workspace, "TAKT_ARTIFACTS_DIR=", "TAKT_PI_BASH_DEFAULT_TIMEOUT_MS=25")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("guarded bash did not enforce its default timeout: %v\n%s", err, output)
+	}
+}
+
+func TestPiWorkspaceGuardBoundsBashOutput(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is required for the native Pi guard regression")
+	}
+	guardPath, cleanup, err := installWorkspaceGuard()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	parent := t.TempDir()
+	workspace := filepath.Join(parent, "execution")
+	if err := os.MkdirAll(workspace, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(parent, ".git"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(t.TempDir(), "check.mjs")
+	if err := os.WriteFile(script, []byte(`import guard from "`+filepath.ToSlash(guardPath)+`"
+let bash
+guard({on() {}, registerTool(tool) { bash = tool }})
+const result = await bash.execute("bounded", {command: "printf 'x%.0s' {1..10000}"}, undefined, undefined, {cwd: process.env.TAKT_WORKSPACE})
+if (!result?.details?.outputTruncated || !result?.isError || result.content?.[0]?.text?.length > 1200) {
+  console.error(JSON.stringify(result))
+  process.exit(1)
+}
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(node, script)
+	cmd.Env = append(os.Environ(), "TAKT_WORKSPACE="+workspace, "TAKT_ARTIFACTS_DIR=", "TAKT_PI_BASH_MAX_OUTPUT_BYTES=512")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("guarded bash did not bound output: %v\n%s", err, output)
 	}
 }
 
@@ -244,6 +377,15 @@ func TestPiDoesNotReclassifyEstablishedSessionFromStderrText(t *testing.T) {
 }
 
 func TestPiAdapterContract(t *testing.T) {
+	t.Run("enforces assistant turn budget", func(t *testing.T) {
+		req := fakePiRequest(t.TempDir())
+		req.MaxTurns = 1
+		_, err := fakePi("retry-before-settled").Run(context.Background(), req)
+		if execution.KindOf(err) != execution.KindTimedOut || !strings.Contains(err.Error(), "turn limit") {
+			t.Fatalf("unexpected turn budget error: kind=%s err=%v", execution.KindOf(err), err)
+		}
+	})
+
 	t.Run("emits compact live tool and message events", func(t *testing.T) {
 		req := fakePiRequest(t.TempDir())
 		var events []string

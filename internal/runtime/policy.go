@@ -173,13 +173,20 @@ func unionStrings(groups ...[]string) []string {
 	return out
 }
 
-func validateAdapterPolicy(adapter assistant.Adapter, policy assistant.Policy) ([]string, error) {
+func nodeCapabilityExtras(node spec.Node) []string {
+	if node.MaxTurns > 0 {
+		return []string{assistant.CapabilityTurnBudget}
+	}
+	return nil
+}
+
+func validateAdapterPolicy(adapter assistant.Adapter, policy assistant.Policy, extraRequired ...string) ([]string, error) {
 	available := adapter.Capabilities()
 	set := make(map[string]bool, len(available))
 	for _, capability := range available {
 		set[capability] = true
 	}
-	required := assistant.RequiredCapabilities(policy)
+	required := append(assistant.RequiredCapabilities(policy), extraRequired...)
 	var missing []string
 	for _, capability := range required {
 		if !set[capability] {

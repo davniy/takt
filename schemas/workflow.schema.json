@@ -415,6 +415,11 @@
           "type": "string",
           "description": "Maximum time without normalized assistant activity; Go duration such as 30s or 5m."
         },
+        "max_turns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum model turns per assistant attempt; enforced by adapters declaring the turn_budget capability (bundled Pi)."
+        },
         "subworkflow": {
           "$ref": "#/$defs/subworkflow"
         },
@@ -809,6 +814,11 @@
         "idle_timeout": {
           "type": "string",
           "description": "Maximum time without normalized assistant activity; Go duration such as 30s or 5m."
+        },
+        "max_turns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum model turns per assistant attempt; enforced by adapters declaring the turn_budget capability (bundled Pi)."
         },
         "subworkflow": {
           "$ref": "#/$defs/subworkflow"

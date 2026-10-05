@@ -2,6 +2,7 @@
 .worktrees/
 **/.takt/runs/
 /.takt/
+/.runs/
 examples/**/.takt/
 examples/**/route.yaml
 examples/**/counter.txt

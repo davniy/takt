@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"takt/internal/assessment"
 	"takt/internal/store"
@@ -38,6 +39,19 @@ type RunStatusResult struct {
 	Executions  int                  `json:"executions"`
 	Usage       *store.Usage         `json:"usage,omitempty"`
 	Assessment  RunAssessmentSummary `json:"assessment"`
+	Assistants  []AssistantStatus    `json:"assistants,omitempty"`
+}
+
+type AssistantStatus struct {
+	RunID          string `json:"run_id"`
+	NodeID         string `json:"node_id"`
+	ObservedEvent  string `json:"observed_event"`
+	DiagnosticCode string `json:"diagnostic_code,omitempty"`
+	IdleTimeout    string `json:"idle_timeout,omitempty"`
+	Timeout        string `json:"timeout,omitempty"`
+	LastEventAt    string `json:"last_event_at"`
+	Tool           string `json:"tool,omitempty"`
+	Message        string `json:"message,omitempty"`
 }
 
 type MetricRatio struct {
@@ -162,6 +176,64 @@ func (s *RunService) Status(runID string) (*RunStatusResult, error) {
 	}
 	root := facts.snapshot.Root
 	result := &RunStatusResult{RunID: root.ID, Status: root.Status, ErrorCode: root.ErrorCode, Error: root.Error, CurrentNode: root.CurrentNode, Matrix: facts.matrix, Attempts: facts.attempts, Executions: facts.executions, Usage: cloneUsage(root.Usage), Assessment: RunAssessmentSummary{Outcomes: map[string]int{}}}
+	for _, event := range facts.snapshot.Events {
+		active := false
+		for _, state := range facts.snapshot.States {
+			if state.ID == event.RunID {
+				if node := state.Nodes[event.NodeID]; node != nil && node.Status == store.NodeRunning && event.Revision <= state.Revision {
+					active = true
+				}
+				break
+			}
+		}
+		if !active {
+			continue
+		}
+		if event.Type == "node.started" {
+			for i := range result.Assistants {
+				if result.Assistants[i].RunID == event.RunID && result.Assistants[i].NodeID == event.NodeID {
+					result.Assistants = append(result.Assistants[:i], result.Assistants[i+1:]...)
+					break
+				}
+			}
+			continue
+		}
+		if strings.HasPrefix(event.Type, "assistant.") {
+			found := -1
+			for i := range result.Assistants {
+				if result.Assistants[i].NodeID == event.NodeID && result.Assistants[i].RunID == event.RunID {
+					found = i
+					break
+				}
+			}
+			if found < 0 {
+				result.Assistants = append(result.Assistants, AssistantStatus{NodeID: event.NodeID, RunID: event.RunID})
+				found = len(result.Assistants) - 1
+			}
+			a := &result.Assistants[found]
+			a.ObservedEvent = event.Type
+			a.LastEventAt = event.Time.UTC().Format(time.RFC3339Nano)
+			a.Tool, _ = event.Data["tool"].(string)
+			a.Message, _ = event.Data["message"].(string)
+			if len(a.Message) > 512 {
+				a.Message = a.Message[:512]
+			}
+			if event.Type == "assistant.session.started" || event.Type == "assistant.session.resumed" {
+				if v, ok := event.Data["idle_timeout"].(string); ok {
+					a.IdleTimeout = v
+				}
+				if v, ok := event.Data["timeout"].(string); ok {
+					a.Timeout = v
+				}
+			}
+			a.DiagnosticCode = ""
+			if event.Type == "assistant.diagnostic" {
+				if v, ok := event.Data["code"].(string); ok {
+					a.DiagnosticCode = v
+				}
+			}
+		}
+	}
 	for _, record := range facts.assessments {
 		switch record.Assessment.Role {
 		case assessment.RolePrimary:

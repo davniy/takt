@@ -46,22 +46,149 @@ func (p Pi) WithOutputTruncatedObserver(observer func()) Pi {
 const defaultPiOutputLimit = 10 * 1024 * 1024
 
 const workspaceGuardExtension = core.WorkspacePathGuardJS + `
+import { existsSync } from "node:fs"
+import { spawn } from "node:child_process"
+
+const pathTools = new Set(["read", "edit", "write", "patch", "grep", "find", "ls"])
+
+function profilePath(value) {
+  return JSON.stringify(canonical(value))
+}
+
+function workspaceRoot(workspace) {
+  let current = canonical(workspace)
+  for (;;) {
+    if (existsSync(resolve(current, ".git"))) return current
+    const parent = dirname(current)
+    if (parent === current) return dirname(current)
+    current = parent
+  }
+}
+
+function shellProfile(workspace, artifacts) {
+  const root = workspaceRoot(workspace)
+  const rules = [
+    "(version 1)",
+    "(allow default)",
+    "(deny file-read* (subpath " + profilePath(root) + "))",
+    "(deny file-write* (subpath " + profilePath(root) + "))",
+    "(allow file-read* (subpath " + profilePath(workspace) + "))",
+    "(allow file-write* (subpath " + profilePath(workspace) + "))",
+  ]
+  if (artifacts) {
+    rules.push("(allow file-read* (subpath " + profilePath(artifacts) + "))")
+    rules.push("(allow file-write* (subpath " + profilePath(artifacts) + "))")
+  }
+  for (const permitted of [workspace, artifacts].filter(Boolean)) {
+    let ancestor = dirname(canonical(permitted))
+    for (;;) {
+      rules.push("(allow file-read-metadata (literal " + profilePath(ancestor) + "))")
+      const parent = dirname(ancestor)
+      if (parent === ancestor) break
+      ancestor = parent
+    }
+  }
+  return rules.join(" ")
+}
+
+function shellQuote(value) {
+  return "'" + String(value).replaceAll("'", "'\\''") + "'"
+}
+
+function guardedCommand(command, workspace, artifacts) {
+  if (process.platform !== "darwin" || !existsSync("/usr/bin/sandbox-exec")) return null
+  const profile = shellQuote(shellProfile(workspace, artifacts))
+  return "sandbox-exec -p " + profile + " /bin/bash -c " + shellQuote(command)
+}
+
+function guardedBashTool(workspace, artifacts) {
+  return {
+    name: "bash",
+    label: "bash",
+    description: "Execute a bash command in the Takt execution workspace.",
+    parameters: {
+      type: "object",
+      properties: {
+        command: { type: "string", description: "Shell command to execute" },
+        timeout: { type: "number", description: "Timeout in seconds (optional)" },
+      },
+      required: ["command"],
+      additionalProperties: false,
+    },
+    promptSnippet: "Execute bash commands inside the Takt execution workspace",
+    async execute(_id, input, signal, _onUpdate, _ctx) {
+      const configuredDefault = Number(process.env.TAKT_PI_BASH_DEFAULT_TIMEOUT_MS)
+      const defaultTimeout = Number.isFinite(configuredDefault) && configuredDefault > 0 ? configuredDefault : 120000
+      const configuredMaxOutput = Number(process.env.TAKT_PI_BASH_MAX_OUTPUT_BYTES)
+      const maxOutputBytes = Number.isFinite(configuredMaxOutput) && configuredMaxOutput > 0 ? configuredMaxOutput : 262144
+      const timeout = Number.isFinite(input.timeout) && input.timeout > 0 ? input.timeout * 1000 : defaultTimeout
+      const command = guardedCommand(input.command, workspace, artifacts)
+      if (!command) {
+        return { content: [{ type: "text", text: "Takt Pi bash isolation backend is unavailable" }], details: { exitCode: 126, timedOut: false }, isError: true }
+      }
+      const child = spawn("/bin/bash", ["-c", command], {
+        cwd: workspace,
+        env: { ...process.env, TAKT_WORKSPACE: workspace, TAKT_ARTIFACTS_DIR: artifacts || "" },
+        detached: process.platform !== "win32",
+        stdio: ["ignore", "pipe", "pipe"],
+      })
+      let output = ""
+      let outputBytes = 0
+      let outputTruncated = false
+      let timedOut = false
+      const kill = () => { if (child.pid) try { process.kill(-child.pid, "SIGTERM") } catch {} }
+      const append = (chunk) => {
+        if (outputTruncated) return
+        const bytes = Buffer.from(chunk)
+        const remaining = maxOutputBytes - outputBytes
+        if (bytes.length <= remaining) {
+          output += bytes.toString()
+          outputBytes += bytes.length
+          return
+        }
+        if (remaining > 0) output += bytes.subarray(0, remaining).toString()
+        outputBytes = maxOutputBytes
+        outputTruncated = true
+        kill()
+      }
+      child.stdout.on("data", append)
+      child.stderr.on("data", append)
+      const timer = timeout === undefined ? undefined : setTimeout(() => { timedOut = true; kill() }, timeout)
+      if (signal) {
+        if (signal.aborted) kill()
+        else signal.addEventListener("abort", kill, { once: true })
+      }
+      const exitCode = await new Promise((resolveExit) => child.on("close", resolveExit))
+      if (timer) clearTimeout(timer)
+      if (signal) signal.removeEventListener("abort", kill)
+      if (outputTruncated) output += "\n[Takt: bash output truncated at " + maxOutputBytes + " bytes; narrow the command or inspect a bounded slice]"
+      return { content: [{ type: "text", text: output }], details: { exitCode, timedOut, outputTruncated }, isError: exitCode !== 0 || timedOut || outputTruncated }
+    },
+  }
+}
+
 export default function workspaceGuard(pi) {
+  const workspace = process.env.TAKT_WORKSPACE
+  const artifacts = process.env.TAKT_ARTIFACTS_DIR
+  if (!workspace) return
+  pi.registerTool(guardedBashTool(workspace, artifacts))
   pi.on("tool_call", async (event) => {
-    if (!["write", "edit", "patch"].includes(event.toolName)) return
-    const workspace = process.env.TAKT_WORKSPACE
-    const artifacts = process.env.TAKT_ARTIFACTS_DIR
+    if (event.toolName === "bash") return
+    if (!pathTools.has(event.toolName)) return
     const inputPath = event.input?.path
-    if (!workspace || typeof inputPath !== "string" || !inputPath.trim()) {
-      return { block: true, reason: "Takt workspace guard could not validate assistant path" }
+    if (typeof inputPath !== "string" || !inputPath.trim()) {
+      if (["edit", "write", "patch"].includes(event.toolName)) {
+        return { block: true, reason: "Takt workspace guard could not validate assistant path" }
+      }
+      return
     }
     try {
       const path = canonical(inputPath.startsWith("/") ? inputPath : resolve(workspace, inputPath))
       if (!within(canonical(workspace), path) && (!artifacts || !within(canonical(artifacts), path))) {
-	        return { block: true, reason: "assistant " + event.toolName + " path is outside execution workspace" }
+        return { block: true, reason: "assistant " + event.toolName + " path is outside execution workspace" }
       }
     } catch (error) {
-	      return { block: true, reason: "Takt workspace guard failed closed: " + String(error) }
+      return { block: true, reason: "Takt workspace guard failed closed: " + String(error) }
     }
   })
 }
@@ -563,16 +690,22 @@ type piRPCRecord struct {
 }
 
 type piRPCClient struct {
-	stdin       io.WriteCloser
-	records     <-chan piRPCRecord
-	streamErr   <-chan error
-	process     *piProcessWait
-	backlog     []piRPCRecord
-	request     Request
-	modelCall   int
-	streaming   bool
-	turnStart   time.Time
-	streamStart time.Time
+	stdin             io.WriteCloser
+	records           <-chan piRPCRecord
+	streamErr         <-chan error
+	process           *piProcessWait
+	backlog           []piRPCRecord
+	request           Request
+	modelCall         int
+	streaming         bool
+	turnStart         time.Time
+	streamStart       time.Time
+	pendingToolStarts map[string]pendingPiToolStart
+}
+
+type pendingPiToolStart struct {
+	event core.Event
+	err   error
 }
 
 type piProcessWait struct {
@@ -777,10 +910,12 @@ func (c *piRPCClient) next(ctx context.Context, match func(piRPCRecord) bool) (p
 				event.Provider = c.request.Model.Provider
 				emitEvent(c.request, event)
 			}
-			if event, ok := piProgressEvent(record); ok {
-				event.SessionID = c.request.SessionID
-				event.Provider = c.request.Model.Provider
-				emitEvent(c.request, event)
+			if record.Type == "turn_start" && c.request.MaxTurns > 0 && c.modelCall > c.request.MaxTurns {
+				return piRPCRecord{}, &execution.Error{Kind: execution.KindTimedOut, ExitCode: -1, Op: "pi turn limit", Err: fmt.Errorf("assistant turn limit exceeded: %d", c.request.MaxTurns)}
+			}
+			c.emitProgress(record)
+			if record.Type == "agent_settled" {
+				c.flushPendingToolStarts()
 			}
 			if transientPiRPCRecord(record.Type) {
 				continue
@@ -791,6 +926,53 @@ func (c *piRPCClient) next(ctx context.Context, match func(piRPCRecord) bool) (p
 			c.backlog = append(c.backlog, record)
 		}
 	}
+}
+
+func (c *piRPCClient) emitProgress(record piRPCRecord) {
+	event, ok := piProgressEvent(record)
+	if !ok {
+		return
+	}
+	event.SessionID = c.request.SessionID
+	event.Provider = c.request.Model.Provider
+	if record.Type == "tool_execution_start" && event.Type == EventToolStarted {
+		if err := piMutationPathError(event, c.request); err != nil {
+			if c.pendingToolStarts == nil {
+				c.pendingToolStarts = make(map[string]pendingPiToolStart)
+			}
+			c.pendingToolStarts[event.CallID] = pendingPiToolStart{event: event, err: err}
+			return
+		}
+	}
+	if record.Type == "tool_execution_end" {
+		if pending, exists := c.pendingToolStarts[event.CallID]; exists {
+			delete(c.pendingToolStarts, event.CallID)
+			if event.Data["error"] == true {
+				diagnostic := core.Event{
+					Type: core.EventDiagnostic, Tool: pending.event.Tool, CallID: pending.event.CallID, Input: pending.event.Input,
+					Message: pending.err.Error(),
+					Data:    map[string]any{"code": "pi.tool.prevalidation_denied", "reason": pending.err.Error()},
+				}
+				diagnostic.SessionID = c.request.SessionID
+				diagnostic.Provider = c.request.Model.Provider
+				emitEvent(c.request, diagnostic)
+			} else {
+				pending.event.SessionID = c.request.SessionID
+				pending.event.Provider = c.request.Model.Provider
+				emitEvent(c.request, pending.event)
+			}
+		}
+	}
+	emitEvent(c.request, event)
+}
+
+func (c *piRPCClient) flushPendingToolStarts() {
+	for _, pending := range c.pendingToolStarts {
+		pending.event.SessionID = c.request.SessionID
+		pending.event.Provider = c.request.Model.Provider
+		emitEvent(c.request, pending.event)
+	}
+	c.pendingToolStarts = nil
 }
 
 func (c *piRPCClient) piLifecycleEvent(record piRPCRecord) (core.Event, bool) {
@@ -899,6 +1081,17 @@ func piProgressEvent(record piRPCRecord) (core.Event, bool) {
 		typeName := EventToolStarted
 		if record.Type == "tool_execution_end" {
 			typeName = EventToolCompleted
+		} else if value.Tool == "write" || value.Tool == "edit" || value.Tool == "patch" {
+			var input struct {
+				Path string `json:"path"`
+			}
+			if json.Unmarshal(value.Args, &input) != nil || strings.TrimSpace(input.Path) == "" {
+				return core.Event{
+					Type: EventDiagnostic, Tool: value.Tool, CallID: value.CallID, Input: value.Args,
+					Message: "Pi mutation call has no usable path; awaiting native tool validation",
+					Data:    map[string]any{"code": "pi.tool.invalid_path_arguments"},
+				}, true
+			}
 		}
 		return core.Event{Type: typeName, Tool: value.Tool, CallID: value.CallID, Input: value.Args, Data: map[string]any{"error": value.IsError}}, true
 	case "message_end":
@@ -929,6 +1122,16 @@ func piProgressEvent(record piRPCRecord) (core.Event, bool) {
 	default:
 		return core.Event{}, false
 	}
+}
+
+func piMutationPathError(event core.Event, request Request) error {
+	if event.Tool != "write" && event.Tool != "edit" && event.Tool != "patch" {
+		return nil
+	}
+	if strings.TrimSpace(request.Workspace) == "" {
+		return nil
+	}
+	return core.ValidateToolPath(event.Tool, event.Input, request.Workspace, request.ArtifactsDir)
 }
 
 func (c *piRPCClient) waitProcess(ctx context.Context) error {
@@ -1188,7 +1391,7 @@ func protocolPiError(op string, err error) error {
 	return &execution.Error{Kind: execution.KindProtocol, ExitCode: -1, Op: "pi " + op, Err: err}
 }
 func (p Pi) Capabilities() []string {
-	return mergeCapabilities([]string{CapabilityToolPolicy, CapabilitySkills, CapabilitySandboxFilesystem}, p.spec.Capabilities)
+	return mergeCapabilities([]string{CapabilityToolPolicy, CapabilitySkills, CapabilitySandboxFilesystem, CapabilityTurnBudget}, p.spec.Capabilities)
 }
 
 func (p Pi) CapabilityDeclaration() CapabilityDeclaration {

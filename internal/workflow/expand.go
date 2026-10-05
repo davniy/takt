@@ -751,7 +751,7 @@ func sourceKinds(node spec.Node) int {
 }
 
 func validateContainerFields(node spec.Node) error {
-	if node.Attempts.Max != 0 || len(node.Attempts.RetryOn) != 0 || node.Attempts.RetrySession != "" || node.AllowFailure || node.Timeout != "" || !hookSetEmpty(node.Hooks) || len(node.NativeHooks) != 0 || node.OutputFormat != nil || node.OutputType != "" || node.OutputMIME != "" || node.OutputPath != "" || node.AllowedTools != nil || len(node.DeniedTools) != 0 || node.Skills != nil || node.MCP != "" || node.Sandbox != nil || len(node.Requires) != 0 {
+	if node.Attempts.Max != 0 || len(node.Attempts.RetryOn) != 0 || node.Attempts.RetrySession != "" || node.AllowFailure || node.Timeout != "" || node.MaxTurns != 0 || !hookSetEmpty(node.Hooks) || len(node.NativeHooks) != 0 || node.OutputFormat != nil || node.OutputType != "" || node.OutputMIME != "" || node.OutputPath != "" || node.AllowedTools != nil || len(node.DeniedTools) != 0 || node.Skills != nil || node.MCP != "" || node.Sandbox != nil || len(node.Requires) != 0 {
 		return fmt.Errorf("container node %q supports assistant/model/session defaults, but attempts, timeout, hooks, native_hooks, policies, output contracts and allow_failure must be defined inside the child workflow", node.ID)
 	}
 	return nil

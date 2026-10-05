@@ -2,6 +2,29 @@
 
 Статус к `v0.1.65-alpha`. Документ описывает фактическое состояние, а не исторический backlog.
 
+Ordinary assistant actions now persist normalized events during execution via
+the existing Store. Parallel waves serialize writes against an isolated snapshot
+and preserve terminal result ordering. Run status includes active assistant
+observations; last durable event time is not the transient activity clock used
+by idle_timeout. External provider 504 failures remain a separate availability issue.
+
+Pi adapter distinguishes pre-validation mutation calls without a usable path
+from actual tool starts. Its native extension replaces the built-in bash tool
+with a workspace-scoped sandbox on macOS and rejects read/mutation tool paths
+outside execution workspace or artifacts; missing OS isolation fails closed.
+RPC regression tests cover malformed arguments, path rejection, shell traversal
+and corrected calls. Live Route DSL retry after this fix is in progress, not
+yet proof of route-generation quality.
+
+Assistant nodes accept `max_turns`, a per-attempt model-turn budget enforced
+by adapters declaring the `turn_budget` capability (bundled Pi). Authoring and
+resolve reject adapters without the capability, non-assistant nodes and
+`executor: external`, where the limit is not transferable.
+
+Assistant `output_format` normalization accepts one schema-valid object or
+array surrounded by model commentary and rejects ambiguous candidates. Script
+and workflow-input JSON boundaries remain strict single-value decoders.
+
 ## Unified Run evaluation — реализовано в v0.1.63
 
 - ordinary evaluation является одним root Run с последовательными

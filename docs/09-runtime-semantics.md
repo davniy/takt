@@ -262,6 +262,17 @@ Usage каждой агентной попытки добавляется к agg
 
 ## 8. Timeout и cancellation
 
+Normalized assistant events are committed while the adapter is running, including
+loop bodies and parallel waves. A wave uses a serialized persistence snapshot;
+terminal results still apply in definition order. Events are not replayed after
+completion. A live persistence failure cancels the active action/wave and returns
+the original Store error rather than treating it as an assistant failure.
+
+`run status` exposes active assistant observations from the saved journal. The
+last-event timestamp is not an idle deadline: transient Pi streaming activity
+resets inactivity without producing a durable record. Absence of journal events
+does not establish provider-side inactivity. Node timeout semantics are unchanged.
+
 `node.timeout` задаётся Go duration и ограничивает всю попытку: `before_node`, действие, `on_failure`, `after_node` и `before_complete`.
 
 При timeout:
@@ -367,7 +378,7 @@ Approval внутри `loop_group` сохраняет `loop_iteration` и доч
 
 ## 12. Структурированный вывод и JSON-пути
 
-Если AI-узел объявляет `output_format`, runtime добавляет его точный `takt-schema-subset/v1` contract к отрендеренному prompt, а успешный сырой output затем декодируется как ровно одно JSON-значение, проверяется по тому же contract и канонизируется. Workflow JSON `input.schema` использует тот же validator; полный JSON Schema не заявляется. Ошибка декодирования, лишнее значение или нарушение схемы классифицируются как `protocol`; такой output не становится успешным результатом узла.
+Если AI-узел объявляет `output_format`, runtime добавляет его точный `takt-schema-subset/v1` contract к отрендеренному prompt. Для `command`/`prompt` assistant output сначала пытается декодироваться как ровно одно JSON-значение; если модель добавила commentary, runtime извлекает структурные object/array-кандидаты, принимает ровно один schema-valid кандидат и канонизирует его. Два валидных кандидата, malformed outer JSON с валидным вложенным объектом и отсутствие schema-valid кандидата классифицируются как `protocol`. `script` и другие deterministic actions сохраняют строгий режим одного JSON-значения. Workflow JSON `input.schema` использует тот же validator; полный JSON Schema не заявляется.
 
 `when` и renderer разрешают путь `$<id>.output.<field>` только после
 декодирования output как JSON. Поля объектов и индексы массивов читаются без
@@ -537,7 +548,7 @@ Only a clean successful `on_success` worktree is removed automatically. An uncha
 
 Эффективная политика вычисляется до вызова adapter. Локальные ограничения объединяются с inherited policy: deny-списки складываются, allowlist и список skills пересекаются как верхние границы, `read_only` и `network: deny` наследуются как наиболее строгие значения, а inherited MCP нельзя незаметно заменить. Явные пустые `allowed_tools: []` и `skills: []` сохраняются как запрет, а не трактуются как отсутствие настройки.
 
-Adapter публикует capabilities. Если хотя бы одна необходимая capability отсутствует, узел завершается до запуска процесса. Эффективная политика и список capabilities сохраняются в `NodeState.policy`; inherited policy сохраняется в child Run. Policy resources входят в definition fingerprint.
+Adapter публикует capabilities. Обязательный набор выводится из effective node policy, `requires` и node constraints: `max_turns` требует `turn_budget`. Если хотя бы одна необходимая capability отсутствует, узел завершается до запуска процесса. `max_turns` не передаётся внешнему worker, поэтому `executor: external` с `max_turns` отклоняется до запуска. Эффективная политика и список capabilities сохраняются в `NodeState.policy`; inherited policy сохраняется в child Run. Policy resources входят в definition fingerprint.
 
 
 ## Authoring, always_run и idle_timeout

@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -41,6 +42,11 @@ function within(root, value) {
 }
 `
 
+// ErrMalformedToolPath marks mutation input that does not carry a usable
+// path. It is distinct from a real boundary violation so observers can keep
+// malformed calls diagnostic instead of cancelling the assistant.
+var ErrMalformedToolPath = errors.New("malformed tool path input")
+
 // ValidateToolPath is the pre-execution path boundary for assistant file
 // mutation tools. It is shared by local process control and external workers.
 func ValidateToolPath(tool string, raw json.RawMessage, workspace, artifacts string) error {
@@ -48,16 +54,16 @@ func ValidateToolPath(tool string, raw json.RawMessage, workspace, artifacts str
 		return nil
 	}
 	if len(raw) == 0 {
-		return fmt.Errorf("assistant %s request omitted path input", tool)
+		return fmt.Errorf("assistant %s request omitted path input: %w", tool, ErrMalformedToolPath)
 	}
 	var input struct {
 		Path string `json:"path"`
 	}
 	if err := json.Unmarshal(raw, &input); err != nil {
-		return fmt.Errorf("assistant %s path input is invalid: %w", tool, err)
+		return fmt.Errorf("assistant %s path input is invalid: %w: %w", tool, err, ErrMalformedToolPath)
 	}
 	if strings.TrimSpace(input.Path) == "" {
-		return fmt.Errorf("assistant %s request omitted path", tool)
+		return fmt.Errorf("assistant %s request omitted path: %w", tool, ErrMalformedToolPath)
 	}
 	if strings.TrimSpace(workspace) == "" {
 		return fmt.Errorf("execution workspace is invalid: path is empty")

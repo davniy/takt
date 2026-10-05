@@ -38,6 +38,8 @@ nodes:
 
 `idle_timeout` доступен `command`/`prompt` и измеряет отсутствие нормализованных событий assistant. Общий `timeout` остаётся верхней границей попытки. Для `executor: external` автоматический expiry требует живого `takt daemon`.
 
+`max_turns` ограничивает число model turns за попытку assistant-узла. Поле требует adapter capability `turn_budget` (сейчас — bundled Pi) и отклоняется для остальных adapters и для `executor: external`; не задавай его для OpenCode/process без явной поддержки.
+
 Поддерживаемые `trigger_rule`:
 
 - `all_success` — все зависимости `completed`;

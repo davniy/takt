@@ -58,7 +58,8 @@ release notes, test evidence и audits вынесены в [`archive/`](archive/
 - [`04-architecture.md`](04-architecture.md) — компонентная схема, scheduler,
   Store, adapters, extensions и trust boundary;
 - [`../ARCHITECTURE_DECISIONS.md`](../ARCHITECTURE_DECISIONS.md) — действующие
-  ADR.
+  ADR; [`decisions/`](decisions/) — новые per-file decision notes, продолжающие
+  общую нумерацию (`NNN-<slug>.md`).
 
 ## Evaluation и интеграции
 

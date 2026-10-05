@@ -126,7 +126,7 @@ type Result struct {
 
 Transport error возвращается через `error`. Ненулевой exit code сохраняется в `Result` и классифицируется runtime с учётом `allow_failure`.
 
-В `takt-assistant/v1alpha1` OS exit code и `Result.ExitCode` описывают один результат и обязаны совпадать полностью, включая ноль. При расхождении adapter возвращает protocol error: envelope не переопределяет OS-завершение, а OS-код не отменяет строгую проверку envelope. Decoder также требует ровно один JSON result, допустимые version/type/status, обязательный и совместимый `exit_code`, неотрицательный usage и подтверждённый resume.
+В `takt-assistant/v1alpha1` OS exit code и `Result.ExitCode` описывают один результат и обязаны совпадать полностью, включая ноль. При расхождении adapter возвращает protocol error: envelope не переопределяет OS-завершение, а OS-код не отменяет строгую проверку envelope. Decoder также требует ровно один JSON result, допустимые version/type/status, обязательный и совместимый `exit_code`, неотрицательный usage и подтверждённый resume. Это transport envelope; для assistant node с `output_format` последующая runtime-нормализация допускает единственный schema-valid object/array в model commentary, сохраняя raw stdout отдельно.
 
 ## 3. Capabilities
 
@@ -137,9 +137,10 @@ Adapter публикует список строковых capabilities:
 - `mcp`;
 - `sandbox_filesystem`;
 - `sandbox_network`;
+- `turn_budget` — adapter обязуется завершить попытку при превышении `Request.MaxTurns` model turns (узел `max_turns`); реализовано bundled Pi;
 - дополнительные adapter-specific names.
 
-Runtime выводит обязательный набор из effective node policy и `requires`. `takt validate` выполняет этот preflight для локальных adapters; запуск повторяет проверку до процесса. Для `executor: external` worker подтверждает declaration при claim. Если capability отсутствует, выполнение отклоняется. Встроенные Pi/OpenCode не могут объявить через config зарезервированную возможность, которую adapter фактически не реализует. Универсальный `process` объявляет поддерживаемые гарантии явно, поскольку их исполняет внешний adapter.
+Runtime выводит обязательный набор из effective node policy, `requires` и node constraints (`max_turns` требует `turn_budget`). `takt validate` выполняет этот preflight для локальных adapters; запуск повторяет проверку до процесса. Для `executor: external` worker подтверждает declaration при claim; `max_turns` не передаётся внешнему worker и поэтому отклоняется для external узлов до запуска. Если capability отсутствует, выполнение отклоняется. Встроенные Pi/OpenCode не могут объявить через config зарезервированную возможность, которую adapter фактически не реализует. Универсальный `process` объявляет поддерживаемые гарантии явно, поскольку их исполняет внешний adapter.
 
 `allowed_tools: []` и `skills: []` являются заданными пустыми allowlists, а не отсутствием политики. Эффективная политика передаётся в `Request.Policy`, process protocol и `TAKT_POLICY_JSON`; фактически применённая политика и capabilities сохраняются в состоянии узла.
 
@@ -148,6 +149,14 @@ Runtime выводит обязательный набор из effective node p
 Нормализованное событие через `Request.Emit` считается activity signal и сбрасывает `idle_timeout` AI-узла. Adapter обязан публиковать события только после фактического прогресса; искусственный heartbeat скрывает зависание и нарушает контракт. Общий `timeout` остаётся независимой верхней границей попытки.
 
 Для внешнего executor activity сохраняется в `ExternalExecutionState.last_activity_at`, а expiry выполняет локальный daemon. Blocking tool approval приостанавливает idle expiry, потому что worker ожидает внешнее решение, а не завис.
+
+Bundled Pi заменяет встроенный `bash` на guarded tool: на macOS команды выполняются
+в sandbox с доступом только к execution workspace и artifacts. Sandbox boundary
+привязан к ближайшему `.git` выше workspace; если git root не найден, boundary
+сужается до `/`, то есть deny read/write везде кроме workspace и artifacts.
+Если команда не передала явный `timeout`, применяется предел 120 секунд;
+превышение завершает команду и возвращает timed-out tool result. При отсутствии
+sandbox backend tool завершается fail-closed.
 
 ## 4. Process transport
 
@@ -304,11 +313,32 @@ assistant.failed
 
 Adapter объявляет protocol, список capabilities, event types и флаги `session_events`, `tool_events`, `tool_control`, `artifact_events`, `usage_events`. `tool_control` разрешён только при pre-execution interception: Takt должен увидеть `tool.requested`, применить policy/approval и вернуть решение до запуска инструмента.
 
-OpenCode и Pi не заявляют generic `tool_control`: их normalized lifecycle events остаются наблюдательными. Bundled adapters применяют отдельный native path boundary для mutation tools до запуска; внешний executor реализует durable blocking lifecycle. Process protocol `takt-assistant/v1alpha2` поддерживает bidirectional records `capabilities`, `event`, `tool.request`, `result` и ответ `tool.decision`.
+OpenCode и Pi не заявляют generic `tool_control`: их normalized lifecycle events остаются наблюдательными. Pi дополнительно регистрирует собственный `bash` tool, который на macOS запускается через workspace-scoped `sandbox-exec`; native extension блокирует path tools (`read|grep|find|ls|write|edit|patch`) за пределами execution workspace и artifacts и fail-closed при отсутствии backend. Это отдельная adapter boundary, не generic protocol `tool_control`. Process protocol `takt-assistant/v1alpha2` поддерживает bidirectional records `capabilities`, `event`, `tool.request`, `result` и ответ `tool.decision`.
 
 Артефакт может содержать `call_id`, связывающий его с породившим tool call. Нормализованный поток не заменяет raw stdout/stderr.
 
 ## 9. Pi adapter
+
+Pi emits `tool_execution_start` before native argument validation. For
+`write|edit|patch` with missing, non-string or blank `path`, the adapter emits
+`assistant.diagnostic` with code `pi.tool.invalid_path_arguments`, original
+arguments and call ID, not `tool.started`. For a non-empty path that fails the
+same workspace/symlink check, the adapter holds the preliminary start until
+the matching `tool_execution_end`: a native-guard error is recorded as
+`assistant.diagnostic` with code `pi.tool.prevalidation_denied`, while a
+successful or unterminated call is sent to the runtime collector as
+`tool.started` and remains fail-closed. This distinguishes a guard rejection
+from evidence that a mutation executed. Native pre-execution path enforcement
+remains mandatory, and a corrected call can continue in the same attempt.
+`tool_execution_end` retains its error flag. No generic tool-control capability
+or assistant success is inferred from either event.
+
+The workspace extension replaces Pi's built-in `bash` definition. On macOS it
+executes commands through `sandbox-exec`, denying reads and writes in the
+containing Git workspace while allowing the execution workspace and run
+artifacts. If `sandbox-exec` is unavailable, the replacement returns a failed
+tool result instead of running the command. This prevents `cd ..`, absolute
+paths and shell subprocesses from bypassing the Takt workspace boundary.
 
 Pi принимает только существующие path skills: каждое значение проверяется через файловую систему до запуска. Именованный skill без локального пути для Pi не поддерживается. OpenCode поддерживает и path skills, и именованные skills; path skill внедряется в prompt, именованный ограничивается permissions.
 

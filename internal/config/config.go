@@ -298,11 +298,11 @@ func validateAssistantCapabilities(name string, assistant spec.AssistantSpec) er
 	builtin := map[string]bool{}
 	switch assistant.Type {
 	case "pi":
-		builtin = map[string]bool{"tool_policy": true, "skills": true, "sandbox_filesystem": true}
+		builtin = map[string]bool{"tool_policy": true, "skills": true, "sandbox_filesystem": true, "turn_budget": true}
 	case "opencode":
 		builtin = map[string]bool{"tool_policy": true, "skills": true, "mcp": true, "sandbox_filesystem": true}
 	}
-	reserved := map[string]bool{"tool_policy": true, "skills": true, "mcp": true, "sandbox_filesystem": true, "sandbox_network": true}
+	reserved := map[string]bool{"tool_policy": true, "skills": true, "mcp": true, "sandbox_filesystem": true, "sandbox_network": true, "turn_budget": true}
 	seen := map[string]bool{}
 	for _, capability := range assistant.Capabilities {
 		if strings.TrimSpace(capability) == "" {

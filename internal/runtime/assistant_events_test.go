@@ -42,8 +42,18 @@ func TestWorkspaceToolControllerDeniesBeforeProcessExecution(t *testing.T) {
 func TestAssistantEventCollectorRejectsToolRequestWithoutPath(t *testing.T) {
 	collector := newAssistantEventCollector(t.TempDir(), t.TempDir())
 	collector.Emit(assistant.Event{Type: assistant.EventToolRequested, Tool: "write", CallID: "call-1", Input: json.RawMessage(`{"content":"x"}`)})
-	if _, err := collector.Result(); err == nil {
-		t.Fatal("write request without path was accepted")
+	if _, err := collector.Result(); err != nil {
+		t.Fatalf("malformed write request terminated collection: %v", err)
+	}
+}
+
+func TestAssistantEventCollectorKeepsMalformedPathNonFatal(t *testing.T) {
+	for _, input := range []string{"", `{"path":`, `{"path":""}`} {
+		collector := newAssistantEventCollector(t.TempDir(), t.TempDir())
+		collector.Emit(assistant.Event{Type: assistant.EventToolStarted, Tool: "edit", CallID: "call-1", Input: json.RawMessage(input)})
+		if _, err := collector.Result(); err != nil {
+			t.Fatalf("input %q terminated collection: %v", input, err)
+		}
 	}
 }
 

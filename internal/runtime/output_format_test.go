@@ -69,6 +69,30 @@ func TestStructuredOutputPreservesRawStdout(t *testing.T) {
 	}
 }
 
+func TestAssistantStructuredOutputAcceptsSurroundingCommentary(t *testing.T) {
+	wf := &spec.Workflow{
+		Name: "assistant-commentary", Provider: "demo", Model: "m", Nodes: []spec.Node{{
+			ID: "review", Prompt: "review", OutputFormat: &spec.OutputFormat{
+				Type: "object", Properties: map[string]spec.OutputFormat{"accepted": {Type: "boolean"}}, Required: []string{"accepted"},
+			},
+		}},
+	}
+	cfg := &spec.Config{Models: map[string]spec.ModelSpec{"m": {Provider: "test", ID: "m"}}, Assistants: map[string]spec.AssistantSpec{"demo": {Type: "mock"}}}
+	r := New(wf, cfg, "<workflow>", "<config>", t.TempDir())
+	r.assistants = resolverFunc(func(string) (assistant.Adapter, error) {
+		return adapterFunc(func(context.Context, assistant.Request) (assistant.Result, error) {
+			return assistant.Result{Output: "Проверка завершена.\n{\"accepted\":true}", ExitCode: 0}, nil
+		}), nil
+	})
+	state, err := r.Start(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := state.Nodes["review"].Output; got != `{"accepted":true}` {
+		t.Fatalf("unexpected normalized output %q", got)
+	}
+}
+
 func TestStructuredOutputFailureIsProtocolError(t *testing.T) {
 	wf := &spec.Workflow{
 		Name: "structured", Provider: "demo", Model: "m", Nodes: []spec.Node{{

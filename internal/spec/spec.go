@@ -50,6 +50,7 @@ type Node struct {
 	AlwaysRun    bool              `json:"always_run,omitempty"`
 	Timeout      string            `json:"timeout,omitempty"`
 	IdleTimeout  string            `json:"idle_timeout,omitempty"`
+	MaxTurns     int               `json:"max_turns,omitempty"`
 	Hooks        HookSet           `json:"hooks,omitempty"`
 	NativeHooks  json.RawMessage   `json:"native_hooks,omitempty"`
 	AllowedTools *[]string         `json:"allowed_tools,omitempty"`

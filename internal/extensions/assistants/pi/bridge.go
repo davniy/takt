@@ -15,6 +15,7 @@ const (
 	CapabilityToolPolicy        = core.CapabilityToolPolicy
 	CapabilitySkills            = core.CapabilitySkills
 	CapabilitySandboxFilesystem = core.CapabilitySandboxFilesystem
+	CapabilityTurnBudget        = core.CapabilityTurnBudget
 	EventSessionStarted         = core.EventSessionStarted
 	EventSessionResumed         = core.EventSessionResumed
 	EventMessage                = core.EventMessage

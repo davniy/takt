@@ -9,6 +9,7 @@ import (
 	"takt/internal/assistant"
 	"takt/internal/execution"
 	"takt/internal/flowref"
+	"takt/internal/schemasubset"
 	"takt/internal/spec"
 	"takt/internal/store"
 )
@@ -156,8 +157,13 @@ func (r *Runner) executeAdapterAction(ctx context.Context, state *store.RunState
 	return normalizeStructuredResult(result, err, node.OutputFormat, "validate adapter structured output")
 }
 
-func (r *Runner) executeAssistantAction(ctx context.Context, state *store.RunState, node spec.Node, action actionContext) (execResult, error) {
-	resolved, err := r.resolveAssistantNode(state, node, action.local, action.feedback, action.artifacts)
+func (r *Runner) executeAssistantAction(ctx context.Context, state *store.RunState, node spec.Node, action actionContext) (executedResult execResult, executionErr error) {
+	bindings, _ := ctx.Value(assistantBindingKey{}).(map[string]preparedAssistantBinding)
+	binding, prepared := bindings[node.ID]
+	resolved, err := binding.resolved, binding.err
+	if !prepared {
+		resolved, err = r.resolveAssistantNode(state, node, action.local, action.feedback, action.artifacts)
+	}
 	if err != nil {
 		return execResult{}, err
 	}
@@ -174,7 +180,15 @@ func (r *Runner) executeAssistantAction(ctx context.Context, state *store.RunSta
 			err = validateAssistantSession(ctx, resolved, result.SessionID, err)
 			err = validateProviderRetrySession(result.SessionID, err)
 		}
-		return normalizeStructuredResult(result, err, node.OutputFormat, "validate structured output")
+		return normalizeAssistantStructuredResult(result, err, node.OutputFormat, "validate structured output")
+	}
+	writer, shared := ctx.Value(assistantLiveKey{}).(*assistantLiveWriter)
+	if !shared {
+		ctx, writer, err = r.newAssistantLiveWriter(ctx, state)
+		if err != nil {
+			return execResult{PersistenceError: err}, err
+		}
+		defer func() { executedResult.PersistenceError = writer.finish(state) }()
 	}
 	idleTimeout := node.IdleTimeout
 	if idleTimeout == "" && r.assistantIdleTimeout > 0 {
@@ -199,6 +213,7 @@ func (r *Runner) executeAssistantAction(ctx context.Context, state *store.RunSta
 	collector := newAssistantEventCollector(r.workspace, r.store.ArtifactsDir(state.ID))
 	collector.onEvent = idle.Touch
 	collector.onViolation = cancelGuard
+	collector.persist = func(event assistant.Event) { writer.emit(node.ID, event) }
 	collector.observe = func(event assistant.Event) {
 		if r.assistantEvents != nil {
 			r.assistantEvents(state.ID, node.ID, redactAssistantEvent(r.redactor, event))
@@ -211,12 +226,13 @@ func (r *Runner) executeAssistantAction(ctx context.Context, state *store.RunSta
 	}
 	collector.Emit(assistant.Event{Type: sessionEvent, Provider: resolved.Model.Provider, SessionID: resolved.SessionID, Data: map[string]any{
 		"assistant": resolved.AssistantName, "attempt": state.Nodes[node.ID].Attempts, "session_mode": resolved.SessionMode,
-		"model_name": resolved.ModelName, "model_id": resolved.Model.ID, "idle_timeout": idleTimeout,
+		"model_name": resolved.ModelName, "model_id": resolved.Model.ID, "idle_timeout": idleTimeout, "timeout": node.Timeout,
 	}})
 	request := assistant.Request{
 		RunID: state.ID, NodeID: node.ID, Attempt: state.Nodes[node.ID].Attempts,
 		Prompt: resolved.Prompt, Workspace: r.workspace, ArtifactsDir: r.store.ArtifactsDir(state.ID), ModelName: resolved.ModelName, Model: resolved.Model,
 		SessionMode: resolved.SessionMode, SessionID: resolved.SessionID, NativeHooks: node.NativeHooks, Policy: resolved.Policy,
+		MaxTurns:    resolved.MaxTurns,
 		ToolControl: toolControl,
 		Emit:        collector.Emit,
 		Activity: func(kind string) {
@@ -259,7 +275,7 @@ func (r *Runner) executeAssistantAction(ctx context.Context, state *store.RunSta
 	if result.ResolvedModel != nil {
 		executed.ResolvedModel = &store.ModelRef{Name: result.ResolvedModel.Name, Provider: result.ResolvedModel.Provider, ID: result.ResolvedModel.ID, Params: cloneParams(result.ResolvedModel.Params)}
 	}
-	return normalizeStructuredResult(executed, err, node.OutputFormat, "validate structured output")
+	return normalizeAssistantStructuredResult(executed, err, node.OutputFormat, "validate structured output")
 }
 
 func validateProviderRetrySession(sessionID string, err error) error {
@@ -281,6 +297,18 @@ func normalizeStructuredResult(result execResult, execErr error, schema *spec.Ou
 		return result, execErr
 	}
 	normalized, err := validateAndNormalizeOutput(result.Output, schema)
+	if err != nil {
+		return result, &execution.Error{Kind: execution.KindProtocol, ExitCode: result.ExitCode, Op: op, Err: err}
+	}
+	result.Output = normalized
+	return result, nil
+}
+
+func normalizeAssistantStructuredResult(result execResult, execErr error, schema *spec.OutputFormat, op string) (execResult, error) {
+	if execErr != nil || schema == nil {
+		return result, execErr
+	}
+	normalized, err := schemasubset.ValidateAndNormalizeAssistantOutput(result.Output, schema)
 	if err != nil {
 		return result, &execution.Error{Kind: execution.KindProtocol, ExitCode: result.ExitCode, Op: op, Err: err}
 	}

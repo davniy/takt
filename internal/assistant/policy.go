@@ -11,6 +11,7 @@ const (
 	CapabilityMCP               = "mcp"
 	CapabilitySandboxFilesystem = "sandbox_filesystem"
 	CapabilitySandboxNetwork    = "sandbox_network"
+	CapabilityTurnBudget        = "turn_budget"
 )
 
 type Policy struct {

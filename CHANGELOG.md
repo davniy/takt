@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- Assistant nodes with `output_format` now tolerate surrounding model commentary when it contains exactly one schema-valid object or array; ambiguous and nested candidates remain protocol failures, while deterministic scripts keep strict single-value parsing.
+
+- Pi's native workspace extension now replaces the built-in `bash` tool with a
+  macOS `sandbox-exec` boundary and rejects read/mutation paths outside the
+  execution workspace or run artifacts. Missing isolation fails closed, and
+  commands without an explicit timeout are capped at 120 seconds.
+
+- Ordinary Runs persist normalized assistant events before the adapter returns,
+  including loop bodies and parallel waves. Live Store failures cancel execution
+  and propagate to the caller. Run status exposes active assistant observations
+  with Run/node identity, last durable event time and configured timeout limits.
+
+- Pi mutation calls without a usable path no longer cancel the assistant at
+  the pre-validation `tool_execution_start` event. They remain diagnostic
+  observations while Pi returns tool feedback; native and collector checks for
+  concrete mutation paths are unchanged.
+
+- Assistant nodes accept `max_turns`, a non-negative model-turn budget per
+  attempt. The field requires the new `turn_budget` adapter capability —
+  bundled Pi declares and enforces it, `takt validate` and Run resolve reject
+  adapters without it, and `executor: external` is rejected because the limit
+  is not transferable to the worker protocol.
+
+- `run status`, `run stats` and `run inspect` print human-readable text output
+  when `--json` is not requested; JSON output is unchanged.
+
 - Product version is reserved as `0.1.65-alpha` for the first behavior-bearing
   slice after `v0.1.64-alpha`.
 - Review-perspective fan-out now captures its typed JSON artifact from the
