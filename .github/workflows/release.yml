@@ -54,22 +54,22 @@ jobs:
       # scripts/verify.sh stages run as separate steps with tee'd logs so the
       # failing stage is visible in the job view and full output survives as
       # an artifact when the blob log endpoint is unreachable.
-      - name: Gate: fmt
+      - name: "Gate: fmt"
         run: gofmt -w cmd internal sdk reference tests
 
-      - name: Gate: vet
+      - name: "Gate: vet"
         run: go vet ./...
 
-      - name: Gate: test-all
+      - name: "Gate: test-all"
         run: make GO_TEST_P=8 test-all 2>&1 | tee gate-test-all.log
 
-      - name: Gate: journeys
+      - name: "Gate: journeys"
         run: make journeys 2>&1 | tee gate-journeys.log
 
-      - name: Gate: race-all
+      - name: "Gate: race-all"
         run: make GO_TEST_P=8 race-all 2>&1 | tee gate-race-all.log
 
-      - name: Gate: build and smoke
+      - name: "Gate: build and smoke"
         env:
           TAKT_REQUIRE_TYPESCRIPT: "1"
         run: |
@@ -78,7 +78,7 @@ jobs:
             ./scripts/test-host-integrations-typescript.sh
           } 2>&1 | tee gate-smoke.log
 
-      - name: Gate: validate examples
+      - name: "Gate: validate examples"
         run: |
           ./bin/takt validate examples/route-dsl/workflow.yaml \
             --config examples/route-dsl/config.yaml \
