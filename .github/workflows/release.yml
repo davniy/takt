@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Manual/Auto Release dispatch: GITHUB_TOKEN pushes cannot retrigger
+  # push-based workflows, so auto-release.yml hands the computed tag over
+  # through this input instead of relying on the tag push itself.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (vX.Y.Z-alpha); must already point at the target commit"
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Release gate (scripts/verify.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          check-latest: true
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pinned TypeScript compiler
+        run: npm install --global typescript@5.7.2
+
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "Takt CI"
+          git config --global user.email "takt-ci@example.invalid"
+
+      - name: Run release gate
+        env:
+          TAKT_REQUIRE_TYPESCRIPT: "1"
+        run: ./scripts/verify.sh
+
+  build-and-release:
+    name: Build & Publish Release
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          check-latest: true
+          cache: true
+
+      - name: Build release binaries
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # internal/version.Value is a var: dev builds report the VERSION
+          # file, release binaries report the tag exactly.
+          VERSION="${RELEASE_TAG#v}"
+          targets=(
+            "linux/amd64/takt-linux-amd64"
+            "darwin/arm64/takt-darwin-arm64"
+            "darwin/amd64/takt-darwin-amd64"
+          )
+
+          for target in "${targets[@]}"; do
+            IFS='/' read -r goos goarch binary <<< "$target"
+            echo "==> Building ${binary} for ${goos}/${goarch}..."
+            CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" go build \
+              -trimpath \
+              -ldflags="-s -w -X takt/internal/version.Value=${VERSION}" \
+              -o "dist/${binary}" \
+              ./cmd/takt
+          done
+
+      - name: Package archives and checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          tar -czvf "takt-${RELEASE_TAG}-linux-amd64.tar.gz" takt-linux-amd64
+          tar -czvf "takt-${RELEASE_TAG}-darwin-arm64.tar.gz" takt-darwin-arm64
+          tar -czvf "takt-${RELEASE_TAG}-darwin-amd64.tar.gz" takt-darwin-amd64
+
+          sha256sum takt-* > SHA256SUMS
+          echo "Generated SHA256SUMS:"
+          cat SHA256SUMS
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: takt-${{ env.RELEASE_TAG }}
+          path: dist/*
+          retention-days: 30
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${RELEASE_TAG}" dist/* \
+            --title "${RELEASE_TAG}" \
+            --generate-notes
